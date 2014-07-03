@@ -39,7 +39,7 @@ bg_lines=$(wc -l < "$background_file")
 fg_lines=$(wc -l < $1)
 tenFG=$(($fg_lines * 10))
 bg_sample_file="${output_dir}/${cf_pref}_background_sampled.bed"
-if [[ "$tenFG" -gt "$bg_lines" ]]
+if [[ "$tenFG" -gt "$bg_lines" ]]; then
 	mv $background_file $bg_sample_file
 else
 	create_background_subsample.sh $1 $background_file
