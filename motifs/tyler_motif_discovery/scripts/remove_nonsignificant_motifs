@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#file: remove_nonsignificant_motifs
+#==================================
+#usage: $remove_nonsignificant_motifs <path_to_motif_files>
+
+#Note: The <path_to_motif_files> should have some motif files, where
+#each file has exactly one motif.
+
+to_remove_file="motifs_to_remove.list"
+grep -r ">" "$(pwd)/$1" | cut -f1,6 | grep "P:1e0" | cut -d ":" -f1 > $to_remove_file
+
+while read fline; do
+	rm $fline
+done < $to_remove_file
+

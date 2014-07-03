@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# $1 (first arg) should be the directory containing all the cluster score files.
+
+cluster_pref="cluster_"
+
+for i in `seq 1 239`
+do
+	filenames=""
+	oldfiles=$1/${cluster_pref}${i}*.score
+	#if [ -f "$oldfiles" ]; then
+		for file in $oldfiles
+		do
+			filenames="${filenames} ${file}"
+		done
+  		if [ ! -z "$filenames" -a "$filenames" != " " ]; then
+			newfile="${1}/c${i}_all_motifs.score"
+			paste $filenames > $newfile
+			gzip $newfile	
+			rm $oldfiles
+		fi
+	#fi
+done
+

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#usage: submit_scan_motifs_batch <path_to_motif_files> <path_to_sequence_file> <output_dir>
+
+for file in $1/*
+do
+	if [[ -d "$file" ]]; then
+		dir_base=${file##*/}
+		cluster_out_dir="${3}/${dir_base}"
+		mkdir $cluster_out_dir
+		for real_file in $file/*; do
+			write_scan_motifs $real_file $2 $cluster_out_dir
+		done
+	else
+		write_scan_motifs $file $2 $3
+	fi	
+done
