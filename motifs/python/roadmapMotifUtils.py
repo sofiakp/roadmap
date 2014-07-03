@@ -222,24 +222,27 @@ def read_homer_annotate_output(homer_file):
     A tuple (scores, motif_names).
     """
     
+    line_idx = []
     with open(homer_file, 'r') as infile:
         for idx, line in enumerate(infile):
             if idx == 0:
                 # The motif name should not contain spaces...
                 motif_names = [s.split()[0] for s in line.strip().split('\t')[9:]]
+            elif line.startswith('PeakID'):
+                tmp = [s.split()[0] for s in line.strip().split('\t')[9:]]
+                assert(all(m[0] == m[1] for m in zip(motif_names, tmp)))
             else:
                 fields = line.strip().split('\t')
                 line_idx_tmp = int(fields[0])
                 scores_tmp = np.array([float(f) for f in fields[9:]])
                 assert(scores_tmp.size == len(motif_names))
                 scores_tmp = np.reshape(scores_tmp, (1, scores_tmp.size))
-                if idx == 1:
+                if len(line_idx) == 0:
                     # First non-header line
-                    line_idx = [line_idx_tmp]
                     scores = scores_tmp
                 else:
-                    line_idx.append(line_idx_tmp)
                     scores = np.concatenate((scores, scores_tmp), axis = 0)
+                line_idx.append(line_idx_tmp)
 
     # HOMER rearranges the peaks. The first column of the output is the peak name
     # so assuming that the peak name was just the peak index, this column
@@ -263,6 +266,7 @@ def merge_homer_annotate_output(filenames):
     """
     
     for fidx, homer_file in enumerate(filenames):
+        print >> sys.stderr, 'Reading', homer_file
         scores_tmp, motif_names_tmp = read_homer_annotate_output(homer_file)
         if fidx == 0:
             scores = scores_tmp
@@ -271,3 +275,69 @@ def merge_homer_annotate_output(filenames):
             scores = np.concatenate((scores, scores_tmp), axis = 1)
             motif_names.extend(motif_names_tmp)
     return (scores, motif_names)
+
+
+def hocomoco_to_homer(hoco_file, out_dir):
+    """Reads a HOCOMOCO motif file and outputs the motifs in HOMER format.
+    
+    The input should be in the V_PPM format (plain text format, probability matrices, 
+    columns as letters (ACGT)). It will write one file per motif,
+    <out_dir>/<motif_name>_motif.txt.
+    """
+    
+    names = []
+    matrices = {}
+    with open(hoco_file, 'r') as infile:
+        for line in infile:
+            if len(line.strip()) == 0:
+                continue
+            if line.startswith('>'):
+                names.append(line.strip().split()[1])
+                last_name = names[-1]
+                matrices[last_name] = []
+            else:
+                # Create a list of lists for each PWM. This can be easily 
+                matrices[last_name].append([float(f) for f in line.strip().split()])
+    for nidx, name in enumerate(names):
+        with open(os.path.join(out_dir, name + '_motif.txt'), 'w') as outfile:
+            mat = np.array(matrices[name])
+            # Compute a log-score threshold as 80% of the maximum achieavable 
+            # threshold. 
+            max_score = np.sum(np.log(np.max(mat, axis = 1)/0.25))
+            outfile.write('>{}\t{}\t{:.6f}\n'.format(name, name, max_score * 0.6))
+            np.savetxt(outfile, mat, fmt = '%.6f', delimiter = '\t')
+
+
+def merge_scores(filenames, vertical = True):
+    """Merges feature matrices with motif scores.
+    
+    Args: 
+    - filenames: Paths to npz files containing feature matrices.
+    - vertical: Concatenate matrices vertically (i.e. add regions).
+    Otherwise, it will concatenate horizontally (i.e. add motifs).
+    
+    Return value: 
+    A tuple (scores, motif_names).
+    """
+    
+    for fidx, filename in enumerate(filenames):
+        if not os.path.isfile(filename):
+            raise IOError('File ' + filename + ' does not exist.')
+        data = np.load(filename)
+        scores_tmp, motif_names_tmp = data['scores'], data['motif_names']
+        assert(len(motif_names_tmp) == scores_tmp.shape[1])
+        
+        if fidx == 0:
+            scores = scores_tmp
+            motif_names = motif_names_tmp
+        else:
+            if vertical:
+                assert(scores.shape[1] == scores_tmp.shape[1])
+                assert(motif_names == motif_names_tmp)
+                scores = np.concatenate((scores, scores_tmp), axis = 0)
+            else:
+                assert(scores.shape[0] == scores_tmp.shape[0])
+                motif_names.extend(motif_names_tmp)
+                scores = np.concatenate((scores, scores_tmp), axis = 1)
+    return (scores, motif_names)
+
