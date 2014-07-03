@@ -1,0 +1,32 @@
+#!/bin/bash
+
+if [[ -n "$2" && "$#" -eq 2 ]]; then
+	mkdir $2
+else
+	echo "usage error. usage: submit_batch <batch_input_file> <batch_output_directory>\n"
+	exit 0
+fi
+
+
+if [[ -d "$1" ]]; then
+	for bedfile in $1/*.bed; do
+		fline="${PWD}/${bedfile}"
+		f_base=${fline##*/}
+		f_pref=${f_base%.*}
+		cluster_output_dir="${2}/${f_pref}_motifs"
+		#echo "fline=${fline}"
+		#echo "f_base=${f_base}"
+		#echo "f_pref=${f_pref}"
+		#echo "cluster_output_dir=${cluster_output_dir}"
+		qsub_homer.sh $fline $cluster_output_dir
+	done
+
+elif [[ -f "$1" ]]; then
+	while read fline; do
+		f_base=${fline##*/}
+		f_pref=${f_base%.*}
+		cluster_output_dir="${2}/${f_pref}_motifs"
+		qsub_homer.sh $fline $cluster_output_dir
+	done < $1
+fi
+

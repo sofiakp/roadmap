@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#make sure homer is executable from wherever we are...
+if ! which annotatePeaks.pl > /dev/null; then
+	source /home/tsdavis/.bash_profile
+fi
+
+annotatePeaks.pl $1 hg19 -size given -noann -nogene -mscore -m $2 > $3
+
+
+xbase=${3##*/}
+xpref=${xbase%.*}
+cat $3 | cut -f10 | tail -n +2 > ${3}.score
+echo "$xpref" | cat - ${3}.score > ${3}.temp && mv ${3}.temp ${3}.score
+rm $3
+

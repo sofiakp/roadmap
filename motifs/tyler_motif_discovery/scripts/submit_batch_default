@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [[ -n "$2" && "$#" -eq 2 ]]; then
+	mkdir $2
+else
+	echo "usage error. usage: ./submit_batch_default <batch_input_file> <batch_output_directory>\n"
+	exit 0
+fi
+
+while read fline; do
+	f_base=${fline##*/}
+	f_pref=${f_base%.*}
+	cluster_output_dir="${2}/${f_pref}_motifs"
+	qsub_homer.sh $fline $cluster_output_dir default
+done < $1
+

@@ -1,0 +1,45 @@
+#!/bin/bash
+
+#usage: extract_motifs <clusters_output_dir>
+
+#assumes structure: 
+#    <clusters_output_dir>:
+#	<each_cluster>:
+#		homerMotifs.all.motifs
+
+output_dir="/home/tsdavis/mylab/data/promoters/single_motifs"
+if [[ ! -d "$output_dir" ]]; then
+	mkdir $output_dir
+fi
+
+for cluster_dir in $1/*
+do
+	cluster_name=${cluster_dir##*/}
+	cluster_motifs_file="${cluster_dir}/homerMotifs.all.motifs"
+	if [[ -f "$cluster_motifs_file" ]]; then
+		i=0
+		motif_lines=""
+		while read fline; do
+			#something with file line
+			if [[ "${fline:0:1}" == ">" ]]; then
+				motif_lines=${motif_lines:1}
+				if [[ ! -d "${output_dir}/${cluster_name}" ]]; then
+					mkdir ${output_dir}/${cluster_name}
+				fi
+				echo "$motif_lines" > ${output_dir}/${cluster_name}/${i}.motif 
+				i=$(($i+1))
+				motif_lines=""
+			fi
+			motif_lines="${motif_lines}
+${fline}"
+		done < $cluster_motifs_file
+		
+		#for the last motif...
+		motif_lines=${motif_lines:1}
+		echo "$motif_lines" > ${output_dir}/${cluster_name}/${i}.motif
+
+		#remove the awkward empty first motif...
+		rm ${output_dir}/${cluster_name}/0.motif
+	fi
+done
+

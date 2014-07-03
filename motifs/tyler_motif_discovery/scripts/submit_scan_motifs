@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# usage: submit_scan_motifs <path_motif_file> <path_to_sequence_file> <output_dir>
+#
+# if <output_dir> is not supplied, then it is assumed to be the current directory.
+
+if [[ -n "$3" ]]; then
+	output_dir=$3
+elif [[ -n "$2" ]]; then
+	output_dir=$(pwd)
+else
+	echo "Invalid Usage."
+	echo "usage: submit_scan_motifs <path_motif_file> <path_to_sequence_file> <output_dir>"
+	echo "if <output_dir> not supplied, it is assumed to be current directory."
+fi
+
+motif_base=${1##*/}
+motif_pref=${motif_base%.*}
+
+seq_base=${2##*/}
+seq_pref=${seq_base%.*}
+
+outfile="${output_dir}/${motif_base}"
+error_file="tsdavis_all_error.log"
+stdout_file="tsdavis_all_stdout.txt"
+
+jobname="motif_${motif_pref}_in_${seq_pref}"
+
+if [[ ! -d "$output_dir" ]]; then
+	mkdir $output_dir
+fi
+
+this_script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+
+qsub -N $jobname -m ea -w e  -e $error_file -o $stdout_file -wd $(pwd) -l h_vmem=25G ${this_script_dir}/scan_motifs $2 $1 $outfile
+

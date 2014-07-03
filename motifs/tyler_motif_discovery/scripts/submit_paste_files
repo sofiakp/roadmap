@@ -1,0 +1,11 @@
+#!/bin/bash
+
+source /home/tsdavis/.bash_profile
+
+error_file="paste_scores_error.log"
+stdout_file="paste_scores_stdout.txt"
+this_script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+qsub -N paste_cluster_motif_scores -m ea -M ${USER}@stanford.edu -w e -e $error_file -o $stdout_file -wd $(pwd) -l h_vmem=10G ${this_script_dir}/paste_files $1
+
+
+

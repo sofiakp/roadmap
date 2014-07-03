@@ -1,0 +1,31 @@
+#!/bin/bash
+
+
+#file: remove_nonsig_motif_scores
+#==================================
+#usage: remove_nonsig_motif_scores <motif_dir> <motif_scores_dir>
+#
+#
+#
+#
+
+motif_dir=$1
+motif_scores_dir=$2
+
+motifs_to_remove_file="motifs_to_remove.list"
+scores_to_remove_file="scores_to_remove.list"
+rm $motifs_to_remove_file
+rm $scores_to_remove_file
+
+grep -r ">" "$(pwd)/$1" | cut -f1,6 | grep "P:1e0" | cut -d ":" -f1 > $motifs_to_remove_file
+
+while read fline; do
+	echo "${fline##*/}.score" >> $scores_to_remove_file
+	#ls $motif_scores_dir | grep "$motif_base" >> $scores_to_remove_file
+done < $motifs_to_remove_file
+
+while read fline; do
+	rm "${motif_scores_dir}/$fline"
+done < $scores_to_remove_file
+
+
