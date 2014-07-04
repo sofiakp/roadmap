@@ -1,4 +1,4 @@
-cd#!/bin/bashv
+#!/bin/bash
 OutputDirectory="/srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/signals"
 enhDirectory="/srv/gsfs0/projects/kundaje/commonRepository/epigenomeRoadmap/signal/stdnames30M/macs2signal/pval/"
 InputDirectory=""
@@ -38,19 +38,26 @@ do
     esac
 done
 
-echo $name
-InputDirectory="/srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/clusters/$name"
+
+if [ "$name" == "dyadic" ]; then
+    echo "Directing files to ""/srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/clusters/$name"
+    InputDirectory="/srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/clusters/$name"
+else
+    echo "Directing files to ""/srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/clusters/$name""s"
+    InputDirectory="/srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/clusters/$name""s"
+fi
+
 #HEY LISTENA. YOU HAD A PROBLEM WHERE THE NAME TRIES TO OPEN THE DIRECTORY ENHANCER, BUT THE REAL DIRECTORY IS NAMED ENHANCERSSSSSSSS WITH AN S. FIND A WAY TO GET IT TO GO TO THE RIGHT DIRECTORY. 
 
-Count=194  #ls *.bed | wc -l
+Count=194  #ls *.bed | wc -l This should be the number of files. Right now its hard coded but whatever. Hackish programming works for the time being. 240 
 i=1
+
 
 #HEY! so you have to change the loop so that it computes ALL of the bigwig files for each cluster. For example. cluster_1.bed will be averaged over all 127 bigwig files, then output it, then proceed onto cluster 2, etc. 
 
 while [[ $i -lt $Count ]]; do
-    #printf -v tempCellNumber "%03d" $i
-    qsub -w e -N CSig_C$i -l h_vmem=3G -l h_rt=00:10:00 -o $OutputDirectory/output.txt -e $OutputDirectory/ErrorCalc.txt -b y /srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/scripts/computeBigWig.sh -i $InputDirectory/cluster_$i.bed -s $name -n $i -t $i -c $i
-#    printf -v tempCellNumber "%02d"$i
-#    echo "/srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/scripts/computeBigWig.sh -i $InputDirectory -s $name -n $i -t $tempCellNumber -c $i"
+#    echo "i: "$i
+	qsub -w e -N CSig_C$i -l h_vmem=3G -l h_rt=00:30:00 -o $OutputDirectory/output.txt -e $OutputDirectory/ErrorCalc.txt -b y /srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/scripts/computeBigWig.sh -i $InputDirectory/cluster_$i.bed -s $name -n $i -t $i -c $i
+#    echo "\n All BW Files computed for cluster "$i" moving onto next cluster." 
     let i=i+1;
 done
