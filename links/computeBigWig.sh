@@ -40,7 +40,11 @@ do
     esac
 done
 
-printf -v tempBWnumber "%03d" $clusterNumber
+BWCount=129 #Number of BW files to look though. ends at 130 cause it goes from 1-129
+bw=1 #BW iterator byte
+
+while [[ $bw -lt $BWCount ]]; do
+printf -v tempBWnumber "%03d" $bw
 
 if [[ $signalName = "enhancer" ]]; then
     BWDirectory="/srv/gsfs0/projects/kundaje/commonRepository/epigenomeRoadmap/signal/stdnames30M/macs2signal/pval/E$tempBWnumber-H3K4me1.pval.signal.bigwig"
@@ -58,6 +62,9 @@ echo "Adding module"
 module add ucsc_tools/2.7.2
 
 echo "Calculating BW"
-bigWigAverageOverBed $BWDirectory $inputClusterDir /srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/signals/$signalName/$cellType"_"$signalName"_"$clusterNumber.tab
+bigWigAverageOverBed $BWDirectory $inputClusterDir /srv/gsfs0/projects/kundaje/users/summerStudents/2014/cha\
+ngken/signals/$signalName/"E"$tempBWnumber"_"$signalName"_"$cluster.tab
 
-#echo "bigWigAverageOverBed $BWDirectory $inputClusterDir /srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/signals/$signalName/$cellType"_"$signalName"_"$clusterNumber.tab"
+#echo "bigWigAverageOverBed $BWDirectory $inputClusterDir /srv/gsfs0/projects/kundaje/users/summerStudents/2014/changken/signals/$signalName/"E"$tempBWnumber"_"$signalName"_"$cluster.tab"
+let bw=bw+1;
+done
