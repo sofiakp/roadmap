@@ -2,7 +2,7 @@ import sys
 import os
 import os.path
 import numpy as np
-from numpy.random import permutation
+import numpy.random
 from sklearn.cross_validation import ShuffleSplit
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import *
@@ -10,7 +10,8 @@ import re
 from multiprocessing import Pool
 import pickle
 
-def get_random_bg(bg_size, cluster_sizes, filenames, outfile = None, motif_names = None):
+def get_random_bg(bg_size, cluster_sizes, filenames, outfile = None, 
+                  motif_names = None, seed = 1):
     """Create random background for a cluster by sampling from the rest of the clusters.
     
     Args:
@@ -33,20 +34,22 @@ def get_random_bg(bg_size, cluster_sizes, filenames, outfile = None, motif_names
     tot_bg = sum(cluster_sizes)
     scores = None
     
+    numpy.random.seed(seed)
+
     for i, other_file in enumerate(filenames):
         num_sel = round(bg_size * float(cluster_sizes[i]) / tot_bg)
         if num_sel > 0:
             data = np.load(other_file)
             scores_tmp = data['scores']
             data.close()
-            scores_tmp = scores_tmp[permutation(cluster_sizes[i])[0:num_sel], :]
+            scores_tmp = scores_tmp[numpy.random.permutation(cluster_sizes[i])[0:num_sel], :]
             if scores is None:
                 scores = scores_tmp
             else:
                 scores = np.concatenate((scores, scores_tmp), axis = 0)
     
     if scores.shape[0] > bg_size:
-        scores = scores[permutation(scores.shape[0])[0:bg_size], :]
+        scores = scores[numpy.random.permutation(scores.shape[0])[0:bg_size], :]
     
     if outfile is None:
         return scores
