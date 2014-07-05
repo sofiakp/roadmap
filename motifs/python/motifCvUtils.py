@@ -136,3 +136,128 @@ def read_model(filename):
         model = pickle.load(infile)
         motif_names = pickle.load(infile)
     return (model, motif_names)
+
+
+def important_nodes(features, imp, imp_cut):
+    """Returns indicators of which notes use important features.
+    
+    Args:
+    - features: Numpy array of length N with indices of features.
+    - imp: Numpy array with feature importances.
+    - imp_cut: Cutoff of importance.
+    
+    Return value:
+    A boolean numpy array of length N, with indicators of which 
+    nodes are interior and use features with importance passing the cutoff.
+    """
+    is_interior = features >= 0
+    is_imp = np.zeros(features.shape)
+    is_imp[is_interior] = imp[features[is_interior]] >= imp_cut
+    return np.logical_and(is_interior, is_imp)
+
+    
+def extract_rf_rules(rf, imp_prc = 90):
+    """Gets rules from a random forest.
+    
+    Args:
+    - rf: RandomForestClassifier object
+    - imp_prc: Only consider nodes with features with importance 
+    greater than the imp_prc-th percentile of importance.
+    
+    Return value:
+    A tuple of dictionaries (rules, thresh).
+    rules[i] will be an array of size N x i containing feature indices of nodes 
+    in paths of length i (where N is the number of such paths that are formed 
+    of nodes containing features passing the cutoff of importance).
+    thresh[i] will be a similar array of the corresponding thresholds.
+    NOTE!!!: The current implementation only returns paths of lenght 1 and 2.
+    """
+    
+    imp = rf.feature_importances_
+    imp_cut = np.percentile(imp, imp_prc)
+    
+    rules = {}
+    thresh = {}
+    for i in range(1, 3):
+        rules[i] = np.empty((0, i), dtype = np.int)
+        thresh[i] = np.empty((0, i))
+    
+    # Loop through decision trees of the forest.
+    # First, get the nodes that contain important features. To get paths of 
+    # length 2, we only need to consider paths starting at one of the important
+    # nodes. Further, we only consider the right children, since we only
+    # care about what happens when the motif score is greater than some threshold.
+    # (The rules have the form feature <= threshold and the left child corresponds 
+    # to the yes answer. This is not obvious at all, unless you print out the trees
+    # and look at the tree.c code of the library...
+    # Note: this scheme can be extended to longer paths. At each iteration
+    # we will be appending to the right of paths of smaller length.
+    for member in rf:
+        # Similar to the "rules" dictionary, but has just indices of nodes.
+        rule_ind = {}
+        for i in range(1, 3):
+            rule_ind[i] = np.empty((0, i), dtype = np.int)
+        t = member.tree_
+        nnodes = len(t.feature)
+        features = t.feature
+        
+        is_imp = important_nodes(features, imp, imp_cut)
+        # Get the indices of all the nodes that contain important features.
+        rule_ind[1] = np.argwhere(is_imp)
+        
+        # Get the indices of the nodes selected in the previous step.
+        children = t.children_right[rule_ind[1]]
+        tmp_feat = -np.ones(children.shape, dtype = np.int)
+        # Get the features associated with the children and select those children
+        # that are contain important features.
+        tmp_feat[children >= 0] = features[children[children >= 0]]
+        is_imp = important_nodes(tmp_feat, imp, imp_cut) 
+        rule_ind[2] = np.reshape(np.concatenate((rule_ind[1][is_imp], children[is_imp])), (2, sum(is_imp))).T
+        for i in range(1, 3):
+            rules[i] = np.concatenate((rules[i], features[rule_ind[i]]), axis = 0)
+            thresh[i] = np.concatenate((thresh[i], t.threshold[rule_ind[i]]), axis = 0)
+    return (rules, thresh)
+
+
+def remove_repetitive_rules(rules, thresh, thresh_cut = 0.01):
+    """Remove similar rules from a set of rules.
+    
+    Two rules are similar if they involve the same set of features and 
+    all their thresholds are up to thresh_cut from each other.
+    The difference in thresholds is computed as the absolute difference
+    divided by the minimum of the absolute values in thresholds.
+    
+    Does NOT check for changes in the order of the features in the rule.
+    
+    Return value:
+    A tuple (rules, thresh) with repeatitive rules removed.
+    """
+    
+    new_rules = {}
+    new_thresh = {}
+    
+    # Iterate through rule lengths
+    for i, r in rules.iteritems():
+        t = thresh[i]
+        # Dictionary from rules (feature indices) to a numpy arrays N x i.
+        # where N is the total number of different thresholds associated 
+        # with the rule.
+        rdict = {}
+        # Iterate through rules of length i.
+        for j in range(r.shape[0]):
+            rtup = tuple(r[j, :]) # Tuples are hashable.
+            new_t = np.reshape(t[j, :], (1, i))
+            if rtup in rdict:
+                diff = np.abs(rdict[rtup] - new_t) / np.minimum(np.abs(rdict[rtup]), np.abs(new_t)) 
+                if not np.any(np.all(diff < thresh_cut, axis = 1)):
+                    rdict[rtup] = np.concatenate((rdict[rtup], new_t), axis = 0)
+            else:
+                rdict[rtup] = new_t
+    
+        new_rules[i] = np.empty((0, i), dtype = np.int)
+        new_thresh[i] = np.empty((0, i))
+        for rtup, rthresh in rdict.iteritems():
+            new_rules[i] = np.concatenate((new_rules[i], np.repeat(np.array(rtup, ndmin = 2), 
+                                                                   rthresh.shape[0], axis = 0)))
+            new_thresh[i] = np.concatenate((new_thresh[i], rthresh))
+    return (new_rules, new_thresh)

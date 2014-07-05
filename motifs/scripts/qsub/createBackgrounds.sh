@@ -33,24 +33,28 @@ fi
 SRCDIR="${LABHOME}/roadmap/src/motifs/"
 
 # Create the sizes file if this doesn't exist.
-sizefile=${SCANDIR}/cluster_sizes.npz
+sizefile=${SCANDIR}/cluster_sizes.pkl
 if [ ! -f $sizefile ]; then
     script=${OUTDIR}/tmp/compute_size.sh
-    echo "#!/bin/bash" >> $script
+    echo "#!/bin/bash" > $script
     echo "module add python/2.7" >> $script
     echo "python ${SRCDIR}/python/createBackgrounds.py $SCANDIR $sizefile --sizes" >> $script
-    qsub -N compute_sizes -q standard l h_vmem=4G -l h_rt=1:00:00 -e ${outdir}/tmp/compute_sizes.err -o /dev/null $script 
+    qsub -N compute_sizes -q standard -l h_vmem=4G -l h_rt=1:00:00 -e ${outdir}/tmp/compute_sizes.err -o /dev/null $script 
 fi
 
 for infile in `ls ${SCANDIR}/*_scores.npz`; do
-    pref=$(basename $infile)
-    pref=${pref/.npz/}_bg
+    base=$(basename $infile)
+    pref=${base/.npz/}_bg
     outfile=${OUTDIR}/${pref}.npz
     script=${OUTDIR}/tmp/${pref}.sh
     errfile=${OUTDIR}/tmp/${pref}.err
-
-    echo "#!/bin/bash" >> $script
+    
+    if [ -f $outfile ]; then
+	echo "$outfile exist. Skipping." 1>&2
+	continue
+    fi
+    echo "#!/bin/bash" > $script
     echo "module add python/2.7" >> $script
-    echo "python ${SRCDIR}/python/createBackgrounds.py $SCANDIR $sizefile -i $infile -o $outfile" >> $script
-    qsub -N $pref -q standard l h_vmem=4G -l h_rt=4:00:00 -e $errfile -o /dev/null $script 
+    echo "python ${SRCDIR}/python/createBackgrounds.py $SCANDIR $sizefile -i $base -o $outfile" >> $script
+    qsub -N $pref -q standard -l h_vmem=4G -l h_rt=4:00:00 -e $errfile -o /dev/null -hold_jid compute_sizes $script 
 done

@@ -4,7 +4,7 @@ import os.path
 import numpy as np
 from motifCvUtils import *
 import argparse
-
+import pickle
 
 def main():
     desc = '''Creates random backgrounds for a given feature matrix.
@@ -41,7 +41,8 @@ the sizefile will be created from all files
             cluster_sizes[os.path.basename(filename)] = data['scores'].shape[0]
             data.close()
 
-        np.savez_compressed(size_file, cluster_sizes = cluster_sizes)
+        with open(size_file, 'wb') as f:
+            pickle.dump(cluster_sizes, f)
         if get_sizes:
             return
 
@@ -49,9 +50,8 @@ the sizefile will be created from all files
     outfile = args.outfile
     
     assert(os.path.isfile(size_file))
-    data = np.load(size_file)
-    cluster_sizes = data['cluster_sizes']
-    data.close()
+    with open(size_file, 'rb') as f:
+        cluster_sizes = pickle.load(f)
 
     data = np.load(os.path.join(scan_dir, infile))
     motif_names = data['motif_names']

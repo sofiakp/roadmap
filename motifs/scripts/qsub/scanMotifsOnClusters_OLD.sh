@@ -12,11 +12,14 @@ OPTIONS:
 EOF
 }
 
-while getopts "h" opt
+MOTIFLIST=
+while getopts "hm:" opt
 do
     case $opt in
 	h)
 	    usage; exit;;
+	m)
+	    MOTIFLIST=$OPTARG;;
 	?)
 	    usage
             exit 1;;
@@ -37,50 +40,66 @@ if [ ! -d ${OUTDIR}/tmp ]; then
 fi
 
 HOMERSRC="${LABHOME}/software/homer/bin/"
+SCRDIR="${LABHOME}/roadmap/src/motifs/"
 
-suf=$(basename $MOTDIR)
-suf=${suf/.txt/}
-
-for bedfile in `ls ${CLUSTDIR}/cluster_86.bed.gz`; do
+for bedfile in `ls ${CLUSTDIR}/cluster_1.bed.gz`; do
     pref=$(basename $bedfile)
     pref=${pref/.bed.gz/}
+    suf=$(basename $MOTDIR)
+    suf=${suf/.txt/}
     script=${OUTDIR}/tmp/${pref}_vs_${suf}.sh
     errfile=${OUTDIR}/tmp/${pref}_vs_${suf}.err
     tmpbed=${OUTDIR}/tmp/${pref}_vs_${suf}_regions.txt
 
-    if [[ -f $scorefile ]] && [[ -f $countfile ]]; then
-	echo "Output files for $pref exist. Skipping" 1>&2
+    scorenpz=${OUTDIR}/${pref}_vs_${suf}_scores.npz
+
+    if [[ -f $scorenpz ]]; then
+	echo "Output file $scorenpz exists. Skipping" 1>&2
 	continue
     fi
 
     echo "#!/bin/bash" > $script
+    echo "module add python/2.7" >> $script
     echo "module add perl-scg" >> $script
     echo "PATH=${HOMERSRC}:${PATH}" >> $script
     echo "zcat $bedfile | awk 'BEGIN{OFS=\"\t\"}{print NR,\$1,\$2,\$3,\"+\"}' > $tmpbed" >> $script
     if [ -f $MOTDIR ]; then
+	# MOTDIR is actually a motif file. Just scan the motifs in this.
+
 	scorefile=${OUTDIR}/${pref}_vs_${suf}_scores.txt
 	countfile=${OUTDIR}/${pref}_vs_${suf}_counts.txt
+    
 	echo "perl ${HOMERSRC}/annotatePeaks.pl $tmpbed hg19 -size given -noann -nogene -m $MOTDIR -mscore > $scorefile" >> $script
 	echo "perl ${HOMERSRC}/annotatePeaks.pl $tmpbed hg19 -size given -noann -nogene -m $MOTDIR -nmotifs > $countfile" >> $script
     else
-	for motfile in `ls ${MOTDIR}/*motif.txt`; do
-	    suf=$(basename $motfile)
-	    suf=${suf/.txt/}
+	# MOTDIR is a directory with motif files. The list of motif files is read from 
+	# MOTIFLIST.
+
+	if [ -z $MOTIFLIST ]; then
+	    echo "Motif list is missing. Aborting." 1>&2
+	    exit 1
+	fi
+
+	for motname in `cat ${MOTIFLIST}`; do
+	    suf=${motname/">"/}
+	    motfile=${MOTDIR}/${suf}_motif.txt
 	    scorefile=${OUTDIR}/${pref}_vs_${suf}_scores.txt
 	    countfile=${OUTDIR}/${pref}_vs_${suf}_counts.txt
+
 	    echo "perl ${HOMERSRC}/annotatePeaks.pl $tmpbed hg19 -size given -noann -nogene -m $motfile -mscore > $scorefile" >> $script
-	    echo "perl ${HOMERSRC}/annotatePeaks.pl $tmpbed hg19 -size given -noann -nogene -m $motfile -nmotifs > $scorefile" >> $script
+	    echo "perl ${HOMERSRC}/annotatePeaks.pl $tmpbed hg19 -size given -noann -nogene -m $motfile -nmotifs > $countfile" >> $script
 	done
-	# TODO: Merge files
+	# Merge files
+	echo "python ${SRCDIR}/python/mergeHomerAnnotate.py $OUTDIR ${pref}_vs_ $MOTIFLIST $scorenpz --insufs _scores.txt,_counts.txt" >> $script
+
 	# Remove all text files
-	for motfile in `ls ${MOTDIR}/*motif.txt`; do
-	    suf=$(basename $motfile)
-	    suf=${suf/.txt/}
+	for motname in `cat ${MOTIFLIST}`; do
+	    suf=${motname/">"/}
 	    scorefile=${OUTDIR}/${pref}_vs_${suf}_scores.txt
 	    countfile=${OUTDIR}/${pref}_vs_${suf}_counts.txt
-	    #echo "rm $scorefile $countfile" >> $script
+	    echo "rm $scorefile $countfile" >> $script
 	done
     fi
     echo "rm $tmpbed" >> $script
-    qsub -q standard -N $pref -l h_vmem=4G -l h_rt=2:00:00 -e $errfile -o /dev/null $script
+    qsub -q standard -N $pref -l h_vmem=4G -l h_rt=6:00:00 -e $errfile -o /dev/null $script
 done

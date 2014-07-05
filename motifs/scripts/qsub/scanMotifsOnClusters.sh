@@ -3,11 +3,21 @@
 usage()
 {
 cat <<EOF
-usage: `basename $0` options MOTDIR CLUSTDIR OUTDIR 
+usage: `basename $0` options MOTFILE OUTDIR
+
+Reads a list of .bed.gz files from the input and Scans the motifs 
+in MOTFILE on each of them. MOTFILE should be a in the HOMER format.
+For each bedfile read it will write a python npz file in OUTDIR,
+containing an NxM matrix scores, where N is the number of regions
+in the bedfile and M is the number of motifs.
+
+If the input bed is big, it will be split into chunks of M regions and
+then reassembled (so HOMER doesn't run out of memory). You can control
+M using the -m option.
 
 OPTIONS:
    -h     Show this message and exit
-
+   -m NUM Number of lines in split files.    
 EOF
 }
 

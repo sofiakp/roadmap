@@ -2,6 +2,7 @@ import sys
 import os
 import os.path
 import numpy as np
+import numpy.random
 import argparse
 import fileinput 
 from sklearn.cross_validation import KFold
@@ -67,7 +68,10 @@ def main():
             pickle.dump(rf, outfile)
             pickle.dump(motif_names, outfile)
     else:
-        perm = permutation(len(y))
+        numpy.random.seed(1)
+
+        # You have to permute, because KFold always creates the folds sequentially.
+        perm = numpy.random.permutation(len(y))
         y = y[perm]
         scores = scores[perm, :]
         
