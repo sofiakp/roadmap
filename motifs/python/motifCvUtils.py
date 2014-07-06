@@ -37,7 +37,7 @@ def get_random_bg(bg_size, cluster_sizes, filenames, outfile = None,
     numpy.random.seed(seed)
 
     for i, other_file in enumerate(filenames):
-        num_sel = round(bg_size * float(cluster_sizes[i]) / tot_bg)
+        num_sel = int(round(bg_size * float(cluster_sizes[i]) / tot_bg))
         if num_sel > 0:
             data = np.load(other_file)
             scores_tmp = data['scores']
@@ -108,8 +108,12 @@ def classifier_cv(cv, model, X, y):
     for i, (train, test) in enumerate(cv):
         model.fit(X[train, :], y[train])
         pred = model.predict(X[test, :])
-        res[i, :] = np.array([precision_score(y[test], pred), recall_score(y[test], pred),
-                              accuracy_score(y[test], pred), f1_score(y[test], pred)])
+        res_tmp = np.array([precision_score(y[test], pred), recall_score(y[test], pred),
+                            accuracy_score(y[test], pred), 0.0])
+        # F1 is ill defined when both precision and recall are 0, so we'll set it to 0.
+        if res_tmp[0] > 0 or res_tmp[1] > 0:
+            res_tmp[3] = f1_score(y[test], pred)
+        res[i, :] = res_tmp
     return np.mean(res, axis = 0)
 
 
@@ -261,3 +265,46 @@ def remove_repetitive_rules(rules, thresh, thresh_cut = 0.01):
                                                                    rthresh.shape[0], axis = 0)))
             new_thresh[i] = np.concatenate((new_thresh[i], rthresh))
     return (new_rules, new_thresh)
+
+
+def get_rule_names(rules, thresh, motif_names):
+    """Generates names for a set of complex rules.
+    
+    Args: 
+    - rules, thresh: Dictionaries with features and thresholds, 
+    as returned by extract_rf_rules.
+    - motif_names: Feature names.
+    
+    Return value:
+    A list of rule names.
+    """
+    
+    out_names = []
+    for i, r in rules.iteritems():
+        for j in range(r.shape[0]):
+            parts = ['{}>{:.3f}'.format(n, t) for (n, t) in zip(motif_names[r[j, :]], thresh[i][j, :])]
+            if i > 1:
+                parts = ['(' + p + ')' for p in parts]
+            out_names.append('AND'.join(parts))
+    return out_names
+
+
+def appy_rules(scores, rules, thresh):
+    """Applies a set of rules to a set of examples.
+    
+    Args:
+    - scores: A feature matrix.
+    - rules, thresh: Dictionaries with features and thresholds, 
+    as returned by extract_rf_rules.
+    
+    Return value:
+    A boolean matrix NxM where N is the number of examples (rows of scores)
+    and M is the total number of rules of any length.
+    """
+    
+    tot_rules = sum(r.shape[0] for r in rules.values())
+    bin_scores = np.zeros((scores.shape[0], 0), dtype = np.bool)
+    for i, r in rules.iteritems():
+        bin_scores = np.concatenate(bin_scores, np.all(scores[:, r] > thresh[i], axis = 3), axis = 1)
+    assert(bin_scores.shape[1] == tot_rules)
+    return bin_scores
