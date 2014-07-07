@@ -264,6 +264,7 @@ def remove_repetitive_rules(rules, thresh, thresh_cut = 0.01):
             new_rules[i] = np.concatenate((new_rules[i], np.repeat(np.array(rtup, ndmin = 2), 
                                                                    rthresh.shape[0], axis = 0)))
             new_thresh[i] = np.concatenate((new_thresh[i], rthresh))
+            assert(new_rules[i].shape[0] == new_thresh[i].shape[0])
     return (new_rules, new_thresh)
 
 
@@ -289,7 +290,7 @@ def get_rule_names(rules, thresh, motif_names):
     return out_names
 
 
-def appy_rules(scores, rules, thresh):
+def apply_rules(scores, rules, thresh):
     """Applies a set of rules to a set of examples.
     
     Args:
@@ -305,6 +306,21 @@ def appy_rules(scores, rules, thresh):
     tot_rules = sum(r.shape[0] for r in rules.values())
     bin_scores = np.zeros((scores.shape[0], 0), dtype = np.bool)
     for i, r in rules.iteritems():
-        bin_scores = np.concatenate(bin_scores, np.all(scores[:, r] > thresh[i], axis = 3), axis = 1)
+        bin_scores = np.concatenate((bin_scores, np.all(scores[:, r] > thresh[i], axis = 2)), axis = 1)
     assert(bin_scores.shape[1] == tot_rules)
     return bin_scores
+
+
+def sample_example_idx(nex, sample_size):
+    """Gets a random sample of size sample_size from [0, nex - 1].
+    If sample_size > nex, then it samples with replacement.
+
+    Return value:
+    A numpy array (sample_size,) with indices of selected samples
+    from [0, nex - 1].
+    """
+
+    if nex >= sample_size:
+        return numpy.random.permutation(nex)[0:sample_size]
+    else:
+        return numpy.random.random_integers(0, nex - 1, (sample_size,))

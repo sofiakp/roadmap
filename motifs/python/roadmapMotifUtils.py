@@ -333,7 +333,7 @@ def merge_scores(filenames, vertical = True):
         else:
             if vertical:
                 assert(scores.shape[1] == scores_tmp.shape[1])
-                assert(motif_names == motif_names_tmp)
+                assert(all(motif_names == motif_names_tmp))
                 scores = np.concatenate((scores, scores_tmp), axis = 0)
             else:
                 assert(scores.shape[0] == scores_tmp.shape[0])
