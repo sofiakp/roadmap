@@ -12,20 +12,16 @@ from motifCvUtils import *
 import pickle
 
 def main():
-    desc = '''
-    Runs Random Forest CV or learning.
-    The path(s) to the feature matrices are read from STDIN. If more than
-    one path is given, then these are assumed to be different sets of features
-    for the same regions, so they will be concatenated.
-    
-    For each path given in the input, it will try to read the corresponding 
-    background (negative set) from
-    <indir>/random_bg/<filename>_bg.npz,
-    where indir is the directory of the input file, and <filename> is the basename
-    of the input file.
-    '''
+    desc = '''Runs Random Forest CV or learning.
+The path(s) to the feature matrices should be given as a comma separated list
+using the infiles argument. The matched background files should be given as
+the second argument (again, comma separated if more than one).
+If more than one path is given, then these are assumed to be different sets of features
+for the same regions, so they will be concatenated.'''
     parser = argparse.ArgumentParser(description = desc,
                                      formatter_class = argparse.RawTextHelpFormatter)
+    parser.add_argument('infiles')
+    parser.add_argument('bgfiles')
     parser.add_argument('outfile')
     parser.add_argument('--depths', default = '2,3,4',
                         help = 'Comma separated list of tree depths to cross validate')
@@ -44,11 +40,13 @@ def main():
     files = []
     bg_files = []
     
-    for filename in fileinput.input([]):
+    for filename in args.infiles.split(','):
         files.append(filename.strip())
-        base_dir = os.path.dirname(files[-1])
-        basename = re.sub('.npz$', '_bg.npz', os.path.basename(files[-1]))
-        bg_files.append(os.path.join(base_dir, 'random_bg', basename))
+
+    for filename in args.bgfiles.split(','):
+        bg_files.append(filename.strip())
+    
+    assert(len(files) == len(bg_files))
         
     (scores, motif_names) = merge_scores(files)
     (scores_bg, motif_names_bg) = merge_scores(bg_files)

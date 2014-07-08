@@ -341,3 +341,35 @@ def merge_scores(filenames, vertical = True):
                 scores = np.concatenate((scores, scores_tmp), axis = 1)
     return (scores, motif_names)
 
+
+def summarize_scores(scores, region_id, fun = np.mean):
+    """Returns a summary of a score matrix, by merging regions with the same id.
+    
+    Args:
+    - scores: A matrix N x M.
+    - region_id: A list of length N. Rows of "scores" with the same id will be combined.
+    If region_id[i] is None, then the i-th row of scores will be completeley ignored.
+    - fun: function to apply to combine rows with the same id (eg. np.mean will average
+    the rows).
+    
+    Return value:
+    A tuple (new_scores, names). new_scores is K x M where K is the number of
+    unique (and not-None) elements of region_id. names is a list of length K
+    with the ids corresponding to each row of new_scores.
+    """
+    
+    assert(len(region_id) == scores.shape[0])
+    region_to_idx = {}
+    for i, r in enumerate(region_id):
+        if not r is None:
+            if not r in region_to_idx:
+                region_to_idx[r] = []
+            region_to_idx[r].append(i)
+        
+    new_scores = np.zeros((len(region_to_idx), scores.shape[1]))
+    new_names = sorted(region_to_idx.keys())
+    for i, name in enumerate(new_names):
+        idx = region_to_idx[name]
+        new_scores[i, :] = fun(scores[idx, :], axis = 0)
+        
+    return (new_scores, new_names)

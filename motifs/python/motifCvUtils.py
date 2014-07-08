@@ -9,6 +9,7 @@ from sklearn.metrics import *
 import re
 from multiprocessing import Pool
 import pickle
+from math import ceil
 
 def get_random_bg(bg_size, cluster_sizes, filenames, outfile = None, 
                   motif_names = None, seed = 1):
@@ -37,7 +38,7 @@ def get_random_bg(bg_size, cluster_sizes, filenames, outfile = None,
     numpy.random.seed(seed)
 
     for i, other_file in enumerate(filenames):
-        num_sel = int(round(bg_size * float(cluster_sizes[i]) / tot_bg))
+        num_sel = int(ceil(bg_size * float(cluster_sizes[i]) / tot_bg))
         if num_sel > 0:
             data = np.load(other_file)
             scores_tmp = data['scores']
@@ -324,3 +325,4 @@ def sample_example_idx(nex, sample_size):
         return numpy.random.permutation(nex)[0:sample_size]
     else:
         return numpy.random.random_integers(0, nex - 1, (sample_size,))
+

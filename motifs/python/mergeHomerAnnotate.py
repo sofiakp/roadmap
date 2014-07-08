@@ -10,7 +10,8 @@ def main():
     desc = '''Reads multiple outputs of HOMER annotatePeaks.pl on the same peak file
 and merges them. All files <indir>/<pref><name>_[scores|counts].txt and will be read. 
 The list of motif names is read from a file. If the list is not provided, it will just 
-read <indir>/<pref>_[scores|counts].txt.'''
+read <indir>/<pref>_[scores|counts].txt (which makes sense if all the motifs are in the 
+same file).'''
     parser = argparse.ArgumentParser(description = desc)
     parser.add_argument('indir', help = 'Directory with HOMER outputs')
     parser.add_argument('pref', help = 'Prefix of input files')
