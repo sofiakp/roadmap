@@ -17,13 +17,18 @@ scores_to_remove_file="scores_to_remove.list"
 rm $motifs_to_remove_file
 rm $scores_to_remove_file
 
+#find nonsignificant motifs by searching the file for a p-value of 1. If found, add the file
+#to $motifs_to_remove_file
 grep -r ">" "$(pwd)/$1" | cut -f1,6 | grep "P:1e0" | cut -d ":" -f1 > $motifs_to_remove_file
 
+#read each line in motifs_to_remove_file, and append ".score" instead of ".motif" to 
+#the $scores_to_remove_file
 while read fline; do
 	echo "${fline##*/}.score" >> $scores_to_remove_file
 	#ls $motif_scores_dir | grep "$motif_base" >> $scores_to_remove_file
 done < $motifs_to_remove_file
 
+#remove motif scores associated with non-significant motifs
 while read fline; do
 	rm "${motif_scores_dir}/$fline"
 done < $scores_to_remove_file
