@@ -26,7 +26,7 @@ def main():
             else:
                 region_ids.append(line.strip())
             
-    scores_tmp, new_names = summarize_scores(scores[:, is_score], region_ids, np.mean)
+    scores_tmp, new_names = summarize_scores(scores[:, is_score], region_ids, np.max)
     counts_tmp, new_names_tmp = summarize_scores(scores[:, is_count], region_ids, np.sum)
     motif_names = np.array(motif_names)
     motif_names = list(np.concatenate((motif_names[is_score], motif_names[is_count])))

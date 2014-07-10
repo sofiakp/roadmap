@@ -3,6 +3,7 @@ import argparse
 import fileinput
 import numpy as np
 import numpy.random
+import pickle
 from roadmapMotifUtils import *
 from lightning.classification import CDClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score
@@ -20,6 +21,8 @@ rest of the data will be split on a test and a validation set of equal sizes.'''
     parser.add_argument('outfile')
     parser.add_argument('--alpha', type = float, default = 0.01,
                         help = 'Coefficient of the penalty term.')
+    parser.add_argument('--tol', type = float, default = 0.01,
+                        help = 'Tolerance for the termination criterion.')
     parser.add_argument('--train', type = float, default = 0.8,
                         help = 'Fraction of examples used for training. [%(default)s]')
     args = parser.parse_args()
@@ -33,16 +36,16 @@ rest of the data will be split on a test and a validation set of equal sizes.'''
     for filename in fileinput.input([]):
         files.append(filename.strip())
         
-    (scores, rule_names) = merge_scores(files)
+    (scores, rule_names) = merge_scores(files, vertical = True)
     
     y = np.repeat(np.arange(len(files)), scores.shape[0] / len(files))
     
     model = CDClassifier(penalty = 'l1/l2', loss = 'squared_hinge', multiclass = True, 
-                             max_iter = 100, alpha = alpha, C = 1.0 / y.size, 
-                             tol = 1e-3, random_state = 1, verbose = 2)
+                         max_iter = 100, alpha = alpha, C = 1.0 / y.size, 
+                         shrinking = False, # weird behavior if this is set to True
+                         tol = args.tol, random_state = 1, verbose = 2)
     
     numpy.random.seed(1)
-    # You have to permute, because KFold always creates the folds sequentially.
     perm = numpy.random.permutation(len(y))
     y = y[perm]
     scores = scores[perm, :]

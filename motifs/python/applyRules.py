@@ -33,7 +33,7 @@ def main():
         med_len = scores.shape[0]
     else:
         if not os.path.isfile(size_file):
-            raise IOError('Size file does not exist:' + size_file)
+            raise IOError('Size file does not exist: ' + size_file)
         with open(size_file, 'rb') as f:
             cluster_sizes = pickle.load(f)
         med_len = int(np.median(cluster_sizes.values()))
@@ -48,7 +48,7 @@ def main():
     numpy.random.seed(1)
     ex_idx = sample_example_idx(scores.shape[0], med_len)
     
-    bin_feat = apply_rules(scores[ex_idx], rules, thresh)
+    bin_feat = apply_rules(scores[ex_idx, :], rules, thresh)
     assert(bin_feat.shape[0] == ex_idx.size)
     assert(bin_feat.shape[1] == len(rule_names))
     
