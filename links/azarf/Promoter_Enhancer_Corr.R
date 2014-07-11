@@ -1,6 +1,6 @@
 Promoters<-read.table("RoadMap/signal/Promoter.txt", check.names=FALSE, header=T)
 Enhancers<-read.table("RoadMap/signal/Enhancer.txt", check.names=FALSE, header=T)
-print(dim(Promoters))
+
 
 
 Corr_Matrix<-matrix( ,nrow=240,ncol=85)
@@ -29,7 +29,6 @@ colnames(Corr_Matrix)<-PCol_name[1, ]
 for(i in 1:nrow(Enhancers)){
     for(j in 1:nrow(Promoters)){
         corr<-cor(as.numeric(Promoters[j,]),as.numeric(Enhancers[i,]))
-        print(corr)
         for(m in 1:nrow(Corr_Matrix)){
            for(n in 1:ncol(Corr_Matrix)){
               if(rownames(Corr_Matrix)[m]==rownames(Enhancers)[i] & colnames(Corr_Matrix)[n]==rownames(Promoters)[j]){
