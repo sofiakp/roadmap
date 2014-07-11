@@ -3,10 +3,13 @@ import argparse
 import fileinput
 import numpy as np
 import numpy.random
+import scipy.sparse as sp
 import pickle
 from roadmapMotifUtils import *
 from lightning.classification import CDClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.cross_validation import StratifiedKFold, StratifiedShuffleSplit
+from math import ceil
 
 def main():
     desc = '''
@@ -50,18 +53,34 @@ rest of the data will be split on a test and a validation set of equal sizes.'''
     y = y[perm]
     scores = scores[perm, :]
     
-    ntrain = int(y.size * train_prc)
-    ntest = (y.size - ntrain) / 2
-    train_idx = np.arange(ntrain)
-    val_idx = np.arange(ntrain, ntrain + ntest)
-    test_idx = np.arange(ntrain + ntest, y.size)
-    all_idx = [train_idx, val_idx, test_idx]
+    # Get balanced training, test, and validation sets.
+    cv = StratifiedShuffleSplit(y, 1, 1.0 - train_prc, indices = True)
+    for train, test in cv:
+        train_idx = train
+        test_tmp = test
+    # Now split the test set (which is balanced by design) into two balanced parts.
+    cv = StratifiedShuffleSplit(y[test_tmp], 1, 0.5, indices = True)
+    for train, test in cv: 
+        test_idx = test_tmp[train]
+        val_idx = test_tmp[test]
     
-    model.fit(scores[train_idx, :], y[train_idx])
+    assert(len(set(train_idx).intersection(set(test_idx))) == 0)
+    assert(len(set(val_idx).intersection(set(test_idx))) == 0)
+    assert(len(set(train_idx).intersection(set(val_idx))) == 0)
+    print >> sys.stderr, 'Will use', len(train_idx), 'examples for training,', \
+        len(test_idx), ' for testing, and', len(val_idx), 'for validation'
+    all_idx = [train_idx, val_idx, test_idx]
+    assert(np.sum([len(i) for i in all_idx]) == y.size)
+
+    #train_idx = np.arange(ntrain)
+    #val_idx = np.arange(ntrain, ntrain + ntest)
+    #test_idx = np.arange(ntrain + ntest, y.size)
+    
+    model.fit(sp.lil_matrix(scores[train_idx, :], dtype = np.float), y[train_idx])
     acc = []
     confusion = []
     for idx in all_idx:
-        pred = model.predict(scores[idx, :])
+        pred = model.predict(sp.lil_matrix(scores[idx, :], dtype = np.float))
         acc.append(accuracy_score(y[idx], pred))
         confusion.append(confusion_matrix(y[idx], pred))
     
