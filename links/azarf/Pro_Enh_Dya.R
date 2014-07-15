@@ -7,13 +7,11 @@ Compute_Average_Signal<-function(files, filePath, fileType, Mean_Signal){
    string<-toString(f)
    tmp<-gsub(".txt","",string)
    if(fileType=="H3K4me3"){
-   print("first if")
    name<-gsub("E[0-9]{3}_H3K4me3_","",tmp)
    type<-gsub("_H3K4me3_cluster_[0-9]{1,3}.txt","",string)
    }
 
    if(fileType=="H3K4me1"){
-   print("second if")
    name<-gsub("E[0-9]{3}_H3K4me1_","",tmp)
    type<-gsub("_H3K4me1_cluster_[0-9]{1,3}.txt","",string)
    }
@@ -23,7 +21,6 @@ Compute_Average_Signal<-function(files, filePath, fileType, Mean_Signal){
         for(j in 1:ncol(Mean_Signal)){
             if(toString(colnames(Mean_Signal)[j])==toString(type)){
                Mean_Signal[i,j]<-average
-             # print("find")
             }
         }
       }
