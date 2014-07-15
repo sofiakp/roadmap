@@ -24,14 +24,16 @@ OPTIONS:
    -m NUM Similarity cutoff for removing redundant rules.
    -s NUM File with cluster sizes (see applyRules.py).
    -t STR Number of trees to use from each RF.
+   -x NUM Maximum number of samples per cluster (ignored if -s is provided).
 EOF
 }
 
 IMP=0.01
 SIM=1
 SIZEFILE=
+MAXEX=10000
 NTREES=0
-while getopts "hp:m:s:t:" opt
+while getopts "hp:m:s:t:x:" opt
 do
     case $opt in
 	h)
@@ -44,6 +46,8 @@ do
 	    SIZEFILE=$OPTARG;;
 	t) 
 	    NTREES=$OPTARG;;
+	x) 
+	    MAXEX=$OPTARG;;
 	?)
 	    usage
             exit 1;;
@@ -68,7 +72,7 @@ fi
 pref=rules_imp${IMP}_sim${SIM}_trees${NTREES}
 ruledir=${MODELDIR}/${pref}
 if [ ! -d ${ruledir}/tmp ]; then
-    mkdir ${ruledir}/tmp
+    mkdir -p ${ruledir}/tmp
 fi
 
 rulefile=${ruledir}/${pref}.pkl
@@ -88,6 +92,10 @@ else
     qsub -N createRules -l h_vmem=4G -l h_rt=6:00:00 -e $errfile -o /dev/null $script
 fi
 
+if [ -z $SIZEFILE ]; then
+    pref=${pref}_max$MAXEX
+fi
+
 for featfile in `ls ${FEATDIR}/*_scores.npz`; do
     c=$(basename $featfile)
     c=${c/_vs_*/}
@@ -99,7 +107,7 @@ for featfile in `ls ${FEATDIR}/*_scores.npz`; do
 
 	echo "#!/bin/bash" > $script
 	echo "module add python/2.7" >> $script
-	echo "python ${SRCDIR}/python/applyRules.py $featfile $rulefile $outfile $sizes" >> $script
+	echo "python ${SRCDIR}/python/applyRules.py $featfile $rulefile $outfile $sizes --maxsize $MAXEX" >> $script
 	qsub -N ${c}_vs_${pref} -hold_jid createRules -l h_vmem=4G -l h_rt=6:00:00 -e $errfile -o /dev/null $script
     else
 	echo "$outfile exist. Skipping." 1>&2
