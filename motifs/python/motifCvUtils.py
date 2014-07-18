@@ -118,11 +118,11 @@ def classifier_cv(cv, model, X, y):
     return np.mean(res, axis = 0)
 
 
-def rf_classifier_cv(X, y, cv, depths, ntrees = 200, njobs = 1):
+def rf_classifier_cv(X, y, cv, depths, ntrees = 200, njobs = 1, min_leaf = 10):
     res = np.zeros((len(depths), 4))
     for i, d in enumerate(depths):
         rf = RandomForestClassifier(random_state = 1, n_estimators = ntrees, criterion = 'entropy', 
-                                    min_samples_leaf = 10, max_depth = d, n_jobs = njobs)
+                                    min_samples_leaf = min_leaf, max_depth = d, n_jobs = njobs)
         res[i, :] = classifier_cv(cv, rf, X, y)
     return res
 
@@ -161,14 +161,16 @@ def important_nodes(features, imp, imp_cut):
     return np.logical_and(is_interior, is_imp)
 
     
-def extract_rf_rules(rf, imp_prc = 90):
+def extract_rf_rules(rf, imp_cut = 0, ntrees = None):
     """Gets rules from a random forest.
     
     Args:
     - rf: RandomForestClassifier object
-    - imp_prc: Only consider nodes with features with importance 
-    greater than the imp_prc-th percentile of importance.
-    
+    - imp_cut: Only consider nodes with features with importance 
+    greater than that cutoff.
+    - ntrees: Only consider the first ntrees trees of the forest.
+    If this is None or 0, all trees will be considered.
+
     Return value:
     A tuple of dictionaries (rules, thresh).
     rules[i] will be an array of size N x i containing feature indices of nodes 
@@ -178,8 +180,13 @@ def extract_rf_rules(rf, imp_prc = 90):
     NOTE!!!: The current implementation only returns paths of lenght 1 and 2.
     """
     
+    if ntrees is None or ntrees == 0:
+        ntrees = rf.n_estimators
+    else:
+        ntrees = min(ntrees, rf.n_estimators)
+
     imp = rf.feature_importances_
-    imp_cut = np.percentile(imp, imp_prc)
+    #imp_cut = np.percentile(imp, imp_prc)
     
     rules = {}
     thresh = {}
@@ -197,7 +204,8 @@ def extract_rf_rules(rf, imp_prc = 90):
     # and look at the tree.c code of the library...
     # Note: this scheme can be extended to longer paths. At each iteration
     # we will be appending to the right of paths of smaller length.
-    for member in rf:
+    for tidx in range(ntrees):
+        member = rf.estimators_[tidx]
         # Similar to the "rules" dictionary, but has just indices of nodes.
         rule_ind = {}
         for i in range(1, 3):
@@ -211,13 +219,15 @@ def extract_rf_rules(rf, imp_prc = 90):
         rule_ind[1] = np.argwhere(is_imp)
         
         # Get the indices of the nodes selected in the previous step.
-        children = t.children_right[rule_ind[1]]
+        # The reshaping is just so I don't get a stupid deprecation warning.
+        children = t.children_right[rule_ind[1].flatten()]
         tmp_feat = -np.ones(children.shape, dtype = np.int)
         # Get the features associated with the children and select those children
         # that are contain important features.
         tmp_feat[children >= 0] = features[children[children >= 0]]
-        is_imp = important_nodes(tmp_feat, imp, imp_cut) 
-        rule_ind[2] = np.reshape(np.concatenate((rule_ind[1][is_imp], children[is_imp])), (2, sum(is_imp))).T
+        is_imp = important_nodes(tmp_feat, imp, imp_cut)
+        parents = rule_ind[1][is_imp].flatten()
+        rule_ind[2] = np.reshape(np.concatenate((parents, children[is_imp])), (2, sum(is_imp))).T
         for i in range(1, 3):
             rules[i] = np.concatenate((rules[i], features[rule_ind[i]]), axis = 0)
             thresh[i] = np.concatenate((thresh[i], t.threshold[rule_ind[i]]), axis = 0)
@@ -307,7 +317,14 @@ def apply_rules(scores, rules, thresh):
     tot_rules = sum(r.shape[0] for r in rules.values())
     bin_scores = np.zeros((scores.shape[0], 0), dtype = np.bool)
     for i, r in rules.iteritems():
-        bin_scores = np.concatenate((bin_scores, np.all(scores[:, r] > thresh[i], axis = 2)), axis = 1)
+        for j in range(r.shape[0]):
+            # For each example, the rule is true if all the features pass
+            # the corresponding thresholds.
+            b = np.all(scores[:, r[j, :]] > np.tile(thresh[i][j, :], (scores.shape[0], 1)), axis = 1)
+            bin_scores = np.concatenate((bin_scores, np.reshape(b, (scores.shape[0], 1))), axis = 1)
+        # The above could be done by taking advantage of broadcasting, but 
+        # I want to make sure I'm taking care of edge cases.
+        #bin_scores = np.concatenate((bin_scores, np.all(scores[:, r] > thresh[i], axis = 2)), axis = 1)
     assert(bin_scores.shape[1] == tot_rules)
     return bin_scores
 

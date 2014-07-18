@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from roadmapMotifUtils import *
 from motifCvUtils import *
 import pickle
+from math import ceil
 
 def main():
     desc = '''Runs Random Forest CV or learning.
@@ -31,12 +32,16 @@ for the same regions, so they will be concatenated.'''
                         help = 'Number of trees in the random forest')
     parser.add_argument('--nocv', action = 'store_true', default = False,
                         help = 'Just learn the model on all the data')
+    parser.add_argument('--minleaf', default = 10, type = float,
+                        help = 'Minimum number of examples at leaves. ' + 
+                        'If < 1, then it will be considered as a fraction of examples.')    
     args = parser.parse_args()
     outfile = args.outfile
     depths = [int(s) for s in args.depths.split(',')]
     njobs = args.njobs
     ntrees = args.ntrees
-    
+    min_leaf = args.minleaf
+
     files = []
     bg_files = []
     
@@ -54,12 +59,26 @@ for the same regions, so they will be concatenated.'''
     assert(list(motif_names) == list(motif_names_bg))
     
     y = np.concatenate((np.ones((scores.shape[0],)), np.zeros((scores_bg.shape[0],))))
+    if min_leaf < 1:
+        min_leaf = int(ceil(min_leaf * float(y.size)))
+    else:
+        min_leaf = int(min_leaf)
+    
+    print >> sys.stderr, 'Setting min_leaf to', str(min_leaf)
+
+    if min_leaf <= 0:
+        raise ValueError('min_leaf is too small ({:d})'.format(min_leaf))
+    
+    if y.size < min_leaf or y.size < 20:
+        raise ValueError('Sample size too small ({:d})'.format(y.size))
+
     scores = np.concatenate((scores, scores_bg), axis = 0)
+    assert(scores.shape[0] == y.size)
 
     if args.nocv:
         assert(len(depths) == 1)
         rf = RandomForestClassifier(random_state = 1, n_estimators = ntrees, 
-                                    criterion = 'entropy', min_samples_leaf = 10, 
+                                    criterion = 'entropy', min_samples_leaf = min_leaf, 
                                     max_depth = depths[0], n_jobs = njobs)
         rf.fit(scores, y)
         with open(outfile, 'wb') as outfile:
@@ -74,7 +93,8 @@ for the same regions, so they will be concatenated.'''
         scores = scores[perm, :]
         
         cv = KFold(len(y), n_folds = 10)
-        res = rf_classifier_cv(scores, y, cv, depths, njobs = njobs, ntrees = ntrees)
+        res = rf_classifier_cv(scores, y, cv, depths, njobs = njobs, 
+                               ntrees = ntrees, min_leaf = min_leaf)
         np.savez_compressed(outfile, res = res, depths = depths)
         
 

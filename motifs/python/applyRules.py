@@ -17,7 +17,9 @@ def main():
     parser.add_argument('rulefile', help = 'File with rules')
     parser.add_argument('outfile')
     parser.add_argument('--sizes', default = None, 
-               help = 'File with cluster sizes (see also createBackgrounds.py).')
+               help = 'File with cluster sizes.')
+    parser.add_argument('--maxsize', type = int, default = None, 
+               help = 'Get at most that many regions from a cluster')
     args = parser.parse_args()
     feat_file = args.featfile
     size_file = args.sizes
@@ -30,10 +32,13 @@ def main():
     data.close()
     
     if size_file is None:
-        med_len = scores.shape[0]
+        if args.maxsize is None:
+            med_len = scores.shape[0]
+        else:
+            med_len = min(args.maxsize, scores.shape[0])
     else:
         if not os.path.isfile(size_file):
-            raise IOError('Size file does not exist:' + size_file)
+            raise IOError('Size file does not exist: ' + size_file)
         with open(size_file, 'rb') as f:
             cluster_sizes = pickle.load(f)
         med_len = int(np.median(cluster_sizes.values()))
@@ -48,7 +53,7 @@ def main():
     numpy.random.seed(1)
     ex_idx = sample_example_idx(scores.shape[0], med_len)
     
-    bin_feat = apply_rules(scores[ex_idx], rules, thresh)
+    bin_feat = apply_rules(scores[ex_idx, :], rules, thresh)
     assert(bin_feat.shape[0] == ex_idx.size)
     assert(bin_feat.shape[1] == len(rule_names))
     

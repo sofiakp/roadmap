@@ -301,7 +301,7 @@ def hocomoco_to_homer(hoco_file, out_dir):
     for nidx, name in enumerate(names):
         with open(os.path.join(out_dir, name + '_motif.txt'), 'w') as outfile:
             mat = np.array(matrices[name])
-            # Compute a log-score threshold as 80% of the maximum achieavable 
+            # Compute a log-score threshold as 60% of the maximum achieavable 
             # threshold. 
             max_score = np.sum(np.log(np.max(mat, axis = 1)/0.25))
             outfile.write('>{}\t{}\t{:.6f}\n'.format(name, name, max_score * 0.6))
