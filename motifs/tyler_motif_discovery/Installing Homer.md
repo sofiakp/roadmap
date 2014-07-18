@@ -20,6 +20,7 @@ if ! which seqlogo > /dev/null; then
 	rm weblogo.2.8.2.tar.gz
 fi
 
+# NOTE: On scg3, you can load the blat module instead of doing this step...
 if ! which blat > /dev/hull; then
 	mkdir blat
 	cd blat
