@@ -160,7 +160,39 @@ def important_nodes(features, imp, imp_cut):
     is_imp[is_interior] = imp[features[is_interior]] >= imp_cut
     return np.logical_and(is_interior, is_imp)
 
-    
+
+def simplify_and_rules(rules, thresh):
+    """Simplifies rules of the form (X>x)AND(X>y) to (X>max(x,y)).
+    """
+
+    for i in rules.keys():
+        if i == 1:
+            continue
+        rep = np.tile(np.reshape(rules[i][:, 0], (rules[i].shape[0], 1)), (1, i))
+        bad_rules = np.all(rules[i] == rep, axis = 1)
+        rules[1] = np.concatenate((rules[1], 
+                                   np.reshape(rules[i][bad_rules, 0], (np.sum(bad_rules), 1))))
+        thresh[1] = np.concatenate((thresh[1], 
+                                    np.reshape(np.max(thresh[i][bad_rules, :], axis = 1), (np.sum(bad_rules), 1))))
+        rules[i] = rules[i][np.logical_not(bad_rules), :]
+        thresh[i] = thresh[i][np.logical_not(bad_rules), :]
+    return (rules, thresh)
+
+
+def order_rules(rules, thresh):
+    """Rearranges the features within each rule in increasing index order.
+    This makes identifying repetitive rules easier."""
+
+    for i in rules.keys():
+        if i == 1:
+            continue
+        for j in range(rules[i].shape[0]):
+            sidx = np.argsort(rules[i][j, :])
+            rules[i][j, :] = rules[i][j, sidx]
+            thresh[i][j, :] = thresh[i][j, sidx]
+    return (rules, thresh)
+
+
 def extract_rf_rules(rf, imp_cut = 0, ntrees = None):
     """Gets rules from a random forest.
     
@@ -231,6 +263,9 @@ def extract_rf_rules(rf, imp_cut = 0, ntrees = None):
         for i in range(1, 3):
             rules[i] = np.concatenate((rules[i], features[rule_ind[i]]), axis = 0)
             thresh[i] = np.concatenate((thresh[i], t.threshold[rule_ind[i]]), axis = 0)
+    
+    rules, thresh = simplify_and_rules(rules, thresh)
+    rules, thresh = order_rules(rules, thresh)
     return (rules, thresh)
 
 

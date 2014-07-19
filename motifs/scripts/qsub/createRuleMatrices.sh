@@ -22,9 +22,10 @@ OPTIONS:
    -h     Show this message and exit
    -p NUM Cutoff of feature importance (see getModelRules.py).
    -m NUM Similarity cutoff for removing redundant rules.
-   -s NUM File with cluster sizes (see applyRules.py).
+   -s FILE File with cluster sizes (see applyRules.py).
    -t STR Number of trees to use from each RF.
    -x NUM Maximum number of samples per cluster (ignored if -s is provided).
+   -r FILE Use the provided rules file instead of the default one. 
 EOF
 }
 
@@ -33,7 +34,9 @@ SIM=1
 SIZEFILE=
 MAXEX=10000
 NTREES=0
-while getopts "hp:m:s:t:x:" opt
+RULES=
+
+while getopts "hp:m:s:t:x:r:" opt
 do
     case $opt in
 	h)
@@ -48,6 +51,8 @@ do
 	    NTREES=$OPTARG;;
 	x) 
 	    MAXEX=$OPTARG;;
+	r)
+	    RULES=$OPTARG;;
 	?)
 	    usage
             exit 1;;
@@ -69,13 +74,26 @@ else
     sizes="--sizes $SIZEFILE"
 fi
 
-pref=rules_imp${IMP}_sim${SIM}_trees${NTREES}
-ruledir=${MODELDIR}/${pref}
+if [ -z $RULES ]; then
+    pref=rules_imp${IMP}_sim${SIM}_trees${NTREES}
+    ruledir=${MODELDIR}/${pref}
+    rulefile=${ruledir}/${pref}.pkl
+else
+    rulefile=$RULES
+    if [ ! -f $RULES ]; then
+	echo "Provided rules file does not exist." 1>&2
+	exit 1
+    fi
+    pref=$(basename $rulefile)
+    pref=${pref/.pkl/}
+    ruledir=${MODELDIR}/${pref}
+fi
+
+echo "Will write results in $ruledir" 1>&2
+
 if [ ! -d ${ruledir}/tmp ]; then
     mkdir -p ${ruledir}/tmp
 fi
-
-rulefile=${ruledir}/${pref}.pkl
 script=${ruledir}/tmp/${pref}.sh
 errfile=${ruledir}/tmp/${pref}.err
 

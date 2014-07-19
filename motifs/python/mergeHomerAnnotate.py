@@ -43,19 +43,22 @@ same file).'''
         if any([not os.path.isfile(f) for f in filenames]):
             raise ValueError('Missing files for suf ' + s)
 
-        (scores_tmp, motif_names_tmp) = merge_homer_annotate_output(filenames)
+        (scores_tmp, motif_names_tmp, region_names_tmp) = merge_homer_annotate_output(filenames)
         assert(len(motif_names_tmp) == scores_tmp.shape[1])
         motif_names_tmp = [m + re.sub('.txt', '', s) for m in motif_names_tmp]            
 
         if sidx == 0:
             scores = scores_tmp
             out_motif_names = motif_names_tmp
+            region_names = region_names_tmp
         else:
             assert(scores.shape[0] == scores_tmp.shape[0])
             scores = np.concatenate((scores, scores_tmp), axis = 1)
             out_motif_names.extend(motif_names_tmp)
+            assert(list(region_names) == list(region_names_tmp))
 
-    np.savez_compressed(args.outfile, scores = scores, motif_names = out_motif_names)
+    np.savez_compressed(args.outfile, scores = scores, motif_names = out_motif_names,
+                        region_names = region_names)
 
 
 if __name__ == '__main__':

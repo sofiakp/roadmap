@@ -246,12 +246,13 @@ def read_homer_annotate_output(homer_file):
 
     # HOMER rearranges the peaks. The first column of the output is the peak name
     # so assuming that the peak name was just the peak index, this column
-    # can be used to get the peaks back in the order of the original bed file.
+    # can be used to get the peaks back in sorted order.
     line_idx = np.array(line_idx)
-    scores_new = np.zeros(scores.shape)
-    scores_new[line_idx - 1, :] = scores
+    sidx = np.argsort(line_idx)
+    scores_new = scores[sidx, :]
+    region_names = line_idx[sidx]
     
-    return (scores_new, motif_names)
+    return (scores_new, motif_names, region_names)
 
 
 def merge_homer_annotate_output(filenames):
@@ -267,14 +268,16 @@ def merge_homer_annotate_output(filenames):
     
     for fidx, homer_file in enumerate(filenames):
         print >> sys.stderr, 'Reading', homer_file
-        scores_tmp, motif_names_tmp = read_homer_annotate_output(homer_file)
+        scores_tmp, motif_names_tmp, region_names_tmp = read_homer_annotate_output(homer_file)
         if fidx == 0:
             scores = scores_tmp
             motif_names = motif_names_tmp
+            region_names = region_names_tmp
         else:
             scores = np.concatenate((scores, scores_tmp), axis = 1)
             motif_names.extend(motif_names_tmp)
-    return (scores, motif_names)
+            assert(list(region_names) == list(region_names_tmp))
+    return (scores, motif_names, region_names)
 
 
 def hocomoco_to_homer(hoco_file, out_dir):
@@ -373,3 +376,36 @@ def summarize_scores(scores, region_id, fun = np.mean):
         new_scores[i, :] = fun(scores[idx, :], axis = 0)
         
     return (new_scores, new_names)
+
+
+def summarize_scores_iter(scores, region_names, region_map, new_scores = None, fun = np.add):
+    """Similar to summarize_scores, but can be called iteratively.
+    This means that functions that can't be applied one element at a time
+    (like mean) won't work properly with this function. 
+
+    Args:
+    - scores
+    - region_names: A list of names for each row of scores.
+    - region_map: A dictionary, mapping names in region_names to broader regions.
+    - new_scores: If this is not None, then the results will be 
+    appended into this dictionary.
+    - fun: Unlike summarize scores, this should be a function that can be applied
+    element-wise, eg. numpy.add or numpy.maximum.
+
+    Return value:
+    A dictionary from region names to their scores.
+    """
+    
+    if new_scores is None:
+        new_scores = {}
+    nregions = len(region_names)
+
+    assert(scores.shape[0] == nregions)
+    for i in range(nregions):
+        if str(region_names[i]) in region_map:
+            new_name = region_map[str(region_names[i])]
+            if new_name in new_scores:
+                new_scores[new_name] = fun(scores[i, :], new_scores[new_name])
+            else:
+                new_scores[new_name] = scores[i, :]
+    return new_scores

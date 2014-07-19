@@ -17,18 +17,20 @@ M using the -m option.
 
 OPTIONS:
    -h     Show this message and exit
-   -m NUM Number of lines in split files.    
+   -n NUM Number of lines in split files.    
    -r STR Path to a region file. Can be used to combine scores for 
           regions of the input bed files.
    -d STR Path where merged results will be written.
-          Default is OUTDIR/merged. 
+          Default is OUTDIR/merged.
+   -m     Input files have names already [default: False] 
 EOF
 }
 
 NLINES=1000
 REGIONFILE=
 MERGEDIR=
-while getopts "hn:r:d:" opt
+HASNAME=0
+while getopts "hn:r:d:m" opt
 do
     case $opt in
 	h)
@@ -39,6 +41,8 @@ do
 	    REGIONFILE=$OPTARG;;
 	d) 
 	    MERGEDIR=$OPTARG;;
+	m)
+	    HASNAME=1;;
 	?)
 	    usage
             exit 1;;
@@ -86,11 +90,11 @@ while read -r bedfile; do
     mergednpz=${MERGEDIR}/${pref}_vs_${suf}_merged_scores.npz
 
     if [[ -f $scorenpz ]] && [[ -z $REGIONFILE ]] ; then
-	echo "Output file $scorenpz exists. Skipping" 1>&2
+	#echo "Output file $scorenpz exists. Skipping" 1>&2
 	continue
     fi
     if [[ -f $mergednpz ]] && [[ ! -z $REGIONFILE ]] ; then
-	echo "Output file $mergednpz exists. Skipping" 1>&2
+	#echo "Output file $mergednpz exists. Skipping" 1>&2
 	continue
     fi
 
@@ -109,8 +113,12 @@ while read -r bedfile; do
     if [ ! -f $scorenpz ]; then
 	touch $scorefile
 	touch $countfile
-	
-	echo "zcat $bedfile | awk 'BEGIN{OFS=\"\t\"}{print NR,\$1,\$2,\$3,\"+\"}' | split -d -l $NLINES - $regionPref" >> $script
+
+	if [ $HASNAME -eq 0 ]; then
+	    echo "zcat $bedfile | awk 'BEGIN{OFS=\"\t\"}{print NR,\$1,\$2,\$3,\"+\"}' | split -d -l $NLINES - $regionPref" >> $script
+	else
+	   echo "zcat $bedfile | awk 'BEGIN{OFS=\"\t\"}{print \$4,\$1,\$2,\$3,\"+\"}' | split -d -l $NLINES - $regionPref" >> $script
+	fi 
 	echo "for regionFile in \`ls ${regionPref}*\`; do" >> $script
 	echo "    perl ${HOMERSRC}/annotatePeaks.pl \$regionFile hg19 -size given -noann -nogene -m $MOTFILE -mscore >> $scorefile" >> $script
 	echo "    perl ${HOMERSRC}/annotatePeaks.pl \$regionFile hg19 -size given -noann -nogene -m $MOTFILE -nmotifs >> $countfile" >> $script
@@ -129,5 +137,5 @@ while read -r bedfile; do
 	echo "python ${SRCDIR}/python/combineRegionScores.py $scorenpz $idfile $mergednpz" >> $script
     fi
 
-    qsub -q standard -N $pref -l h_vmem=4G -l h_rt=6:00:00 -e $errfile -o /dev/null $script
+    qsub -q standard -N $pref -l h_vmem=8G -l h_rt=6:00:00 -e $errfile -o /dev/null $script
 done

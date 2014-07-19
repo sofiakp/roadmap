@@ -32,7 +32,8 @@ def main():
     motif_names = list(np.concatenate((motif_names[is_score], motif_names[is_count])))
     scores = np.concatenate((scores_tmp, counts_tmp), axis = 1)
 
-    np.savez_compressed(args.outfile, scores = scores, motif_names = motif_names)
+    np.savez_compressed(args.outfile, scores = scores, motif_names = motif_names,
+                        region_names = new_names)
 
 if __name__ == '__main__':
     main()
