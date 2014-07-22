@@ -169,8 +169,11 @@ def simplify_and_rules(rules, thresh):
     for i in rules.keys():
         if i == 1:
             continue
+        # Get the rules where all the features are equal to the first
         rep = np.tile(np.reshape(rules[i][:, 0], (rules[i].shape[0], 1)), (1, i))
         bad_rules = np.all(rules[i] == rep, axis = 1)
+        if bad_rules.size == 0:
+            continue
         rules[1] = np.concatenate((rules[1], 
                                    np.reshape(rules[i][bad_rules, 0], (np.sum(bad_rules), 1))))
         thresh[1] = np.concatenate((thresh[1], 
