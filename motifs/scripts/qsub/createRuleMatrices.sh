@@ -26,6 +26,7 @@ OPTIONS:
    -t STR Number of trees to use from each RF.
    -x NUM Maximum number of samples per cluster (ignored if -s is provided).
    -r FILE Use the provided rules file instead of the default one. 
+   -n      Set negative thresholds to 0.
 EOF
 }
 
@@ -35,8 +36,9 @@ SIZEFILE=
 MAXEX=10000
 NTREES=0
 RULES=
+NONEG=""
 
-while getopts "hp:m:s:t:x:r:" opt
+while getopts "hp:m:s:t:x:r:n" opt
 do
     case $opt in
 	h)
@@ -53,6 +55,8 @@ do
 	    MAXEX=$OPTARG;;
 	r)
 	    RULES=$OPTARG;;
+	n)
+	    NONEG="--noneg";;
 	?)
 	    usage
             exit 1;;
@@ -76,6 +80,9 @@ fi
 
 if [ -z $RULES ]; then
     pref=rules_imp${IMP}_sim${SIM}_trees${NTREES}
+    if [[ $NONEG == "--noneg" ]]; then
+	pref=${pref}_noNeg
+    fi
     ruledir=${MODELDIR}/${pref}
     rulefile=${ruledir}/${pref}.pkl
 else
@@ -105,7 +112,7 @@ else
     echo "#!/bin/bash" > $script
     echo "module add python/2.7" >> $script
     echo "Will write rule file in $rulefile." 1>&2
-    params="--imp $IMP --similarity $SIM --ntrees $NTREES"
+    params="--imp $IMP --similarity $SIM --ntrees $NTREES $NONEG"
     echo "ls ${MODELDIR}/*model.pkl | python ${SRCDIR}/python/getModelRules.py $params $rulefile" >> $script
     qsub -N createRules -l h_vmem=4G -l h_rt=6:00:00 -e $errfile -o /dev/null $script
 fi

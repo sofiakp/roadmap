@@ -11,6 +11,8 @@ def main():
     If the argument --sizes is specified it should point to a file with a dictionary of cluster
     sizes. In this case the median cluster size will be used to get a sample of the input feature
     matrix. 
+    If both --sizes and --maxsize are None (default), the rules will be applied to the entire
+    motif matrix.
     '''
     parser = argparse.ArgumentParser(description = desc)
     parser.add_argument('featfile', help = 'File with feature matrix with motif scores')
@@ -29,6 +31,10 @@ def main():
         raise IOError('Feature file does not exist: ' + feat_file)
     data = np.load(feat_file)
     scores = data['scores']
+    if 'region_names' in data:
+        region_names = data['region_names']
+    else:
+        region_names = None
     data.close()
     
     if size_file is None:
@@ -49,15 +55,19 @@ def main():
         rules = pickle.load(f)
         thresh = pickle.load(f)
         rule_names = pickle.load(f)
-    
-    numpy.random.seed(1)
-    ex_idx = sample_example_idx(scores.shape[0], med_len)
+
+    if size_file is None and args.maxsize is None:
+        ex_idx = np.arange(med_len)
+    else:
+        numpy.random.seed(1)
+        ex_idx = sample_example_idx(scores.shape[0], med_len)
     
     bin_feat = apply_rules(scores[ex_idx, :], rules, thresh)
     assert(bin_feat.shape[0] == ex_idx.size)
     assert(bin_feat.shape[1] == len(rule_names))
     
-    np.savez_compressed(args.outfile, scores = bin_feat, motif_names = rule_names)
+    np.savez_compressed(args.outfile, scores = bin_feat, 
+                        motif_names = rule_names, region_names = region_names)
 
 
 if __name__ == '__main__':

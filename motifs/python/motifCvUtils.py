@@ -44,6 +44,7 @@ def get_random_bg(bg_size, cluster_sizes, filenames, outfile = None,
             scores_tmp = data['scores']
             data.close()
             scores_tmp = scores_tmp[numpy.random.permutation(cluster_sizes[i])[0:num_sel], :]
+            print >> sys.stderr, other_file, scores_tmp.shape
             if scores is None:
                 scores = scores_tmp
             else:
@@ -193,7 +194,7 @@ def order_rules(rules, thresh):
     return (rules, thresh)
 
 
-def extract_rf_rules(rf, imp_cut = 0, ntrees = None):
+def extract_rf_rules(rf, imp_cut = 0, ntrees = None, remove_neg = False):
     """Gets rules from a random forest.
     
     Args:
@@ -202,6 +203,7 @@ def extract_rf_rules(rf, imp_cut = 0, ntrees = None):
     greater than that cutoff.
     - ntrees: Only consider the first ntrees trees of the forest.
     If this is None or 0, all trees will be considered.
+    - remove_neg: Set negative thresholds to 0.
 
     Return value:
     A tuple of dictionaries (rules, thresh).
@@ -249,7 +251,9 @@ def extract_rf_rules(rf, imp_cut = 0, ntrees = None):
         is_imp = important_nodes(features, imp, imp_cut)
         # Get the indices of all the nodes that contain important features.
         rule_ind[1] = np.argwhere(is_imp)
-        
+        if rule_ind[1].size == 0:
+            continue
+
         # Get the indices of the nodes selected in the previous step.
         # The reshaping is just so I don't get a stupid deprecation warning.
         children = t.children_right[rule_ind[1].flatten()]
@@ -261,9 +265,14 @@ def extract_rf_rules(rf, imp_cut = 0, ntrees = None):
         parents = rule_ind[1][is_imp].flatten()
         rule_ind[2] = np.reshape(np.concatenate((parents, children[is_imp])), (2, sum(is_imp))).T
         for i in range(1, 3):
+            if rule_ind[i].size == 0:
+                continue
             rules[i] = np.concatenate((rules[i], features[rule_ind[i]]), axis = 0)
             thresh[i] = np.concatenate((thresh[i], t.threshold[rule_ind[i]]), axis = 0)
     
+    if remove_neg:
+        for i in range(1, 3):
+            thresh[i] = np.maximum(thresh[i], 0)
     rules, thresh = simplify_and_rules(rules, thresh)
     rules, thresh = order_rules(rules, thresh)
     return (rules, thresh)
@@ -274,13 +283,11 @@ def remove_repetitive_rules(rules, thresh, thresh_cut = 0.01):
     
     Two rules are similar if they involve the same set of features and 
     all their thresholds are up to thresh_cut from each other.
-    The difference in thresholds is computed as the absolute difference
-    divided by the minimum of the absolute values in thresholds.
     
     Does NOT check for changes in the order of the features in the rule.
     
     Return value:
-    A tuple (rules, thresh) with repeatitive rules removed.
+    A tuple (rules, thresh) with repetitive rules removed.
     """
     
     new_rules = {}
@@ -298,7 +305,7 @@ def remove_repetitive_rules(rules, thresh, thresh_cut = 0.01):
             rtup = tuple(r[j, :]) # Tuples are hashable.
             new_t = np.reshape(t[j, :], (1, i))
             if rtup in rdict:
-                diff = np.abs(rdict[rtup] - new_t) / np.minimum(np.abs(rdict[rtup]), np.abs(new_t)) 
+                diff = np.abs(rdict[rtup] - new_t) #/ np.minimum(np.abs(rdict[rtup]), np.abs(new_t)) 
                 if not np.any(np.all(diff < thresh_cut, axis = 1)):
                     rdict[rtup] = np.concatenate((rdict[rtup], new_t), axis = 0)
             else:

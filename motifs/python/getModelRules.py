@@ -19,6 +19,8 @@ Rules will then be filtered based on similarity.
                         help = 'Similarity cutoff for removing redundant rules [%(default)s]')
     parser.add_argument('--ntrees', type = int, default = None,
                         help = 'Only use the first NTREES from each RF (None or 0 to use all of them) [%(default)s]')
+    parser.add_argument('--noneg', action = 'store_true', default = False,
+                        help = 'Set negative rule thresholds to 0.')
     args = parser.parse_args()
     imp_cut = args.imp
     assert(imp_cut >= 0)
@@ -38,7 +40,8 @@ Rules will then be filtered based on similarity.
             motif_names = motif_names_tmp
         else:
             assert(all(motif_names == motif_names_tmp))
-        rules_tmp, thresh_tmp = extract_rf_rules(rf, imp_cut, ntrees = ntrees)
+        rules_tmp, thresh_tmp = extract_rf_rules(rf, imp_cut, ntrees = ntrees,
+                                                 remove_neg = args.noneg)
         for i, r in rules_tmp.iteritems():
             if not i in rules:
                 rules[i] = np.empty((0, i), dtype = np.int)

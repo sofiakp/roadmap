@@ -22,7 +22,9 @@ OPTIONS:
           regions of the input bed files.
    -d STR Path where merged results will be written.
           Default is OUTDIR/merged.
-   -m     Input files have names already [default: False] 
+   -m     Input files have names already [default: False]
+   -t     Do not recreate text count files. USE WITH CAUTION. 
+   -g NUM Gigabytes of memory to use [default: 8].
 EOF
 }
 
@@ -30,7 +32,9 @@ NLINES=1000
 REGIONFILE=
 MERGEDIR=
 HASNAME=0
-while getopts "hn:r:d:m" opt
+KEEPTEXT=0
+MEM=8
+while getopts "hn:r:d:mtg:" opt
 do
     case $opt in
 	h)
@@ -43,6 +47,10 @@ do
 	    MERGEDIR=$OPTARG;;
 	m)
 	    HASNAME=1;;
+	t)
+	    KEEPTEXT=1;;
+	g)
+	    MEM=$OPTARG;;
 	?)
 	    usage
             exit 1;;
@@ -98,10 +106,10 @@ while read -r bedfile; do
 	continue
     fi
 
-    if [ -f $scorefile ]; then
+    if [[ -f $scorefile ]] && [[ $KEEPTEXT -eq 0 ]]; then
 	rm $scorefile
     fi
-    if [ -f $countfile ]; then
+    if [[ -f $countfile ]] && [[ $KEEPTEXT -eq 0 ]]; then
 	rm $countfile
     fi
 
@@ -111,20 +119,23 @@ while read -r bedfile; do
     echo "PATH=${HOMERSRC}:${PATH}" >> $script
 
     if [ ! -f $scorenpz ]; then
-	touch $scorefile
-	touch $countfile
 
-	if [ $HASNAME -eq 0 ]; then
-	    echo "zcat $bedfile | awk 'BEGIN{OFS=\"\t\"}{print NR,\$1,\$2,\$3,\"+\"}' | split -d -l $NLINES - $regionPref" >> $script
-	else
-	   echo "zcat $bedfile | awk 'BEGIN{OFS=\"\t\"}{print \$4,\$1,\$2,\$3,\"+\"}' | split -d -l $NLINES - $regionPref" >> $script
-	fi 
-	echo "for regionFile in \`ls ${regionPref}*\`; do" >> $script
-	echo "    perl ${HOMERSRC}/annotatePeaks.pl \$regionFile hg19 -size given -noann -nogene -m $MOTFILE -mscore >> $scorefile" >> $script
-	echo "    perl ${HOMERSRC}/annotatePeaks.pl \$regionFile hg19 -size given -noann -nogene -m $MOTFILE -nmotifs >> $countfile" >> $script
-	echo "    rm \$regionFile" >> $script
-	echo "done" >> $script
+	if [[ ! -f $scorefile ]] || [[ ! -f $countfile ]]; then
+	    touch $scorefile
+	    touch $countfile
 
+	    if [ $HASNAME -eq 0 ]; then
+		echo "zcat $bedfile | awk 'BEGIN{OFS=\"\t\"}{print NR,\$1,\$2,\$3,\"+\"}' | split -d -l $NLINES - $regionPref" >> $script
+	    else
+		echo "zcat $bedfile | awk 'BEGIN{OFS=\"\t\"}{print \$4,\$1,\$2,\$3,\"+\"}' | split -d -l $NLINES - $regionPref" >> $script
+	    fi 
+
+	    echo "for regionFile in \`ls ${regionPref}*\`; do" >> $script
+	    echo "    perl ${HOMERSRC}/annotatePeaks.pl \$regionFile hg19 -size given -noann -nogene -m $MOTFILE -mscore >> $scorefile" >> $script
+	    echo "    perl ${HOMERSRC}/annotatePeaks.pl \$regionFile hg19 -size given -noann -nogene -m $MOTFILE -nmotifs >> $countfile" >> $script
+	    echo "    rm \$regionFile" >> $script
+	    echo "done" >> $script
+	fi
 	echo "python ${SRCDIR}/python/mergeHomerAnnotate.py $OUTDIR ${pref}_vs_${suf} $scorenpz --insufs _scores.txt,_counts.txt" >> $script
 	echo "rm $scorefile $countfile" >> $script
     fi
@@ -137,5 +148,9 @@ while read -r bedfile; do
 	echo "python ${SRCDIR}/python/combineRegionScores.py $scorenpz $idfile $mergednpz" >> $script
     fi
 
-    qsub -q standard -N $pref -l h_vmem=8G -l h_rt=6:00:00 -e $errfile -o /dev/null $script
+    if [ $MEM -gt 16 ]; then
+	qsub -N $pref -P large_mem -l h_vmem=${MEM}G -l h_rt=16:00:00 -e $errfile -o /dev/null $script
+    else
+	qsub -N $pref -l h_vmem=${MEM}G -l h_rt=6:00:00 -e $errfile -o /dev/null $script
+    fi
 done
