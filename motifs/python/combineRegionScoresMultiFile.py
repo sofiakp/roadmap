@@ -41,7 +41,10 @@ See also summarize_scores_iter in roadmapMotifUtils.'''
     with open(args.mapfile, 'r') as mapfile:
         for line in mapfile:
             fields = line.strip().split()
-            region_map[fields[0]] = fields[1]
+            if not fields[0] in region_map:
+                region_map[fields[0]] = []
+            # Multi-mapping
+            region_map[fields[0]].append(fields[1])
 
     new_scores = None
     new_counts = None

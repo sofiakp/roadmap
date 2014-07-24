@@ -387,6 +387,8 @@ def summarize_scores_iter(scores, region_names, region_map, new_scores = None, f
     - scores
     - region_names: A list of names for each row of scores.
     - region_map: A dictionary, mapping names in region_names to broader regions.
+    This can be a multi-mapping, so region_map[i] is a list of all the broader
+    regions to which i maps.
     - new_scores: If this is not None, then the results will be 
     appended into this dictionary.
     - fun: Unlike summarize scores, this should be a function that can be applied
@@ -403,9 +405,10 @@ def summarize_scores_iter(scores, region_names, region_map, new_scores = None, f
     assert(scores.shape[0] == nregions)
     for i in range(nregions):
         if str(region_names[i]) in region_map:
-            new_name = region_map[str(region_names[i])]
-            if new_name in new_scores:
-                new_scores[new_name] = fun(scores[i, :], new_scores[new_name])
-            else:
-                new_scores[new_name] = scores[i, :]
+            new_names = region_map[str(region_names[i])]
+            for n in new_names:
+                if n in new_scores:
+                    new_scores[n] = fun(scores[i, :], new_scores[n])
+                else:
+                    new_scores[n] = scores[i, :]
     return new_scores

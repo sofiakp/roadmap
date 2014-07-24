@@ -26,18 +26,22 @@ OPTIONS:
    -h     Show this message and exit
    -g FILE File mapping states to genes.
    -s STR  Suffix of output files.
+   -f STR  Extra suffix for output gene files.
 EOF
 }
 
 SUF=""
+SUF2=""
 GENEMAP=
-while getopts "hs:g:" opt
+while getopts "hs:g:f:" opt
 do
     case $opt in
 	h)
 	    usage; exit;;
 	s)
 	    SUF=$OPTARG;;
+	f)
+	    SUF2=$OPTARG;;
 	g)
 	    GENEMAP=$OPTARG;;
 	?)
@@ -68,7 +72,7 @@ while read -r bedfile; do
     pref=${pref/.gz/}
     pref=${pref/.bed/}
     outfile1=${OUTDIR}/${pref}${SUF}_scores.npz
-    outfile2=${GENEDIR}/${pref}${SUF}_gene_scores.npz
+    outfile2=${GENEDIR}/${pref}${SUF}${SUF2}_gene_scores.npz
     mapfile=${OUTDIR}/tmp/${pref}${SUF}_state_map.txt
     script=${OUTDIR}/tmp/${pref}${SUF}.sh
     errfile=${OUTDIR}/tmp/${pref}${SUF}.err

@@ -35,6 +35,8 @@ for the same regions, so they will be concatenated.'''
     parser.add_argument('--minleaf', default = 10, type = float,
                         help = 'Minimum number of examples at leaves. ' + 
                         'If < 1, then it will be considered as a fraction of examples.')    
+    parser.add_argument('--noneg', action = 'store_true', default = False,
+                        help = 'Set negative scores to 0 before traiing.')
     args = parser.parse_args()
     outfile = args.outfile
     depths = [int(s) for s in args.depths.split(',')]
@@ -73,6 +75,8 @@ for the same regions, so they will be concatenated.'''
         raise ValueError('Sample size too small ({:d})'.format(y.size))
 
     scores = np.concatenate((scores, scores_bg), axis = 0)
+    if args.noneg:
+        scores = np.maximum(scores, 0)
     assert(scores.shape[0] == y.size)
 
     if args.nocv:
@@ -86,13 +90,8 @@ for the same regions, so they will be concatenated.'''
             pickle.dump(motif_names, outfile)
     else:
         numpy.random.seed(1)
-
-        # You have to permute, because KFold always creates the folds sequentially.
-        perm = numpy.random.permutation(len(y))
-        y = y[perm]
-        scores = scores[perm, :]
         
-        cv = KFold(len(y), n_folds = 10)
+        cv = KFold(len(y), n_folds = 10, shuffle = True, random_state = 1)
         res = rf_classifier_cv(scores, y, cv, depths, njobs = njobs, 
                                ntrees = ntrees, min_leaf = min_leaf)
         np.savez_compressed(outfile, res = res, depths = depths)
