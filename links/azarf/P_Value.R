@@ -1,6 +1,6 @@
 P_Value<-function(filePath){
          
-         file<-read.table(filePath, header=T)
+         file<-read.table(filePath)
          vector<-unlist(file)
          SortedVector<-sort(vector, decreasing = FALSE)
          Pvalue<-quantile(SortedVector, c(.01, .05, .10)) 
