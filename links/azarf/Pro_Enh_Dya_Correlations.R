@@ -2,7 +2,7 @@ ComputeCorrealtion<- function(table_1, table_2,Matrix){
 for(i in 1:nrow(table_1)){
     for(j in 1:nrow(table_2)){
         corr<-cor(as.numeric(table_2[j,]),as.numeric(table_1[i,]))
-         Matrix[m,n]<-corr
+         Matrix[i,j]<-corr
        }
     }
  return(Matrix)
