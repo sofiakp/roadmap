@@ -17,14 +17,14 @@ Enhancers<-read.table("/srv/gsfs0/projects/kundaje/users/azarf/roadmap/signal/En
 
 
 Output<-SignalNormalization(Promoters)
-write.table(Output,file="Promoter_Norm.txt",row.names=F, col.names=F,sep="\t")
+write.table(Output,file="Promoter_Norm.txt",sep="\t")
 
 Output<-SignalNormalization(Enhancers)
-write.table(Output,file="Enhancers_Norm.txt",row.names=F, col.names=F,sep="\t")
+write.table(Output,file="Enhancers_Norm.txt",sep="\t")
 
 Output<-SignalNormalization(Dyadics_H3k4me1)
-write.table(Output,file="Dyadics_H3k4me1_Norm.txt",row.names=F, col.names=F,sep="\t")
+write.table(Output,file="Dyadics_H3k4me1_Norm.txt",sep="\t")
 
 Output<-SignalNormalization(Dyadics_H3k4me3)
-write.table(Output,file="Dyadics_H3k4me3_Norm.txt",row.names=F, col.names=F,sep="\t")
+write.table(Output,file="Dyadics_H3k4me3_Norm.txt",sep="\t")
 
