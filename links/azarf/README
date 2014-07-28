@@ -1,6 +1,7 @@
 To Compute P-Values:
 
-1) Normalize the mean signals: Signal_Normalization.R
-2) Compute and permutate the correlation between each pair of signals: 	Pro_Enh_Dya_Correlations.R
-3) Aggregate Correlations: Aggregate_Correlation.R
-4) Compute P-Values: P_Value.R
+1) Compute mean signals: Pro_Enh_Dya.R 
+2) Normalize the mean signals: Signal_Normalization.R
+3) Compute and permutate the correlation between each pair of signals: 	Pro_Enh_Dya_Correlations.R
+4) Aggregate Correlations: Aggregate_Correlation.R
+5) Compute P-Values: P_Value.R
