@@ -3,11 +3,13 @@
 usage()
 {
 cat <<EOF
-usage: `basename $0` options SCANDIRS OUTDIR
+usage: `basename $0` options SCANDIR
 Runs crossValidateCluster.py for a list of clusters read from STDIN.
 For each file <pref>.bed.gz it will look for feature matrices 
 starting with <pref>_vs_ in SCANDIR. The corresponding random backgrounds
 should be in SCANDIR/random_bg and have the same prefix.
+
+By default, output will be written in SCANDIR/cv[_noNeg][/depth$d].
 
 OPTIONS:
    -h     Show this message and exit
@@ -18,6 +20,7 @@ OPTIONS:
    -m NUM How many Gb of memory to request [Default: 8].
    -l NUM Minimum number (or fraction) of examples in leaves [Default: 10].
    -e     Set negative scores to 0 before learning.
+   -o PATH Change the default output directory.
 EOF
 }
 
@@ -28,7 +31,8 @@ NJOBS=4
 MEM=8
 MINLEAF=0.1
 NONEG=""
-while getopts "hnd:t:l:p:m:e" opt
+OUTDIR=
+while getopts "hnd:t:l:p:m:eo:" opt
 do
     case $opt in
 	h)
@@ -47,6 +51,8 @@ do
 	    MEM=$OPTARG;;
 	e)
 	    NONEG="--noneg";;
+	o) 
+	    OUTDIR=$OPTARG;;
 	?)
 	    usage
             exit 1;;
@@ -54,18 +60,21 @@ do
 done
 
 shift "$((OPTIND - 1))"
-if [ $# -ne 2 ]; then 
+if [ $# -ne 1 ]; then 
     usage; exit 1;
 fi
 SCANDIR=$1
-OUTDIR=$2
 
-if [[ $CV == "--nocv" ]]; then
-    OUTDIR=${OUTDIR}/depth${DEPTHS}
+if [ -z $OUTDIR ]; then
+    OUTDIR=${SCANDIR}/cv
+    if [[ $NONEG == "--noneg" ]]; then
+	OUTDIR=${OUTDIR}_noNeg
+    fi
+    if [[ $CV == "--nocv" ]]; then
+	OUTDIR=${OUTDIR}/depth${DEPTHS}
+    fi
 fi
-#if [[ $NONEG == "--noneg" ]]; then
-#    OUTDIR=${OUTDIR}_noNeg
-#fi
+
 if [ ! -d ${OUTDIR}/tmp ]; then
     mkdir -p ${OUTDIR}/tmp 
 fi
