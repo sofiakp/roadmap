@@ -4,5 +4,5 @@ To Compute P-Values:
 2) Normalize the mean signals: Signal_Normalization.R
 3) Compute correlations between each pair of signals: 	Pro_Enh_Dya_Correlations.R
 4) Compute permutations for each pair of signals: Null_Hypothesis.R
-5) Aggregate Correlations: Aggregate_Correlation.R
+5) Aggregate permutated correlations: Aggregate_Correlation.R
 6) Compute P-Values: P_Value.R
