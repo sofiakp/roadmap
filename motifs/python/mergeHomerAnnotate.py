@@ -46,6 +46,7 @@ same file).'''
         (scores_tmp, motif_names_tmp, region_names_tmp) = merge_homer_annotate_output(filenames)
         assert(len(motif_names_tmp) == scores_tmp.shape[1])
         motif_names_tmp = [m + re.sub('.txt', '', s) for m in motif_names_tmp]            
+        scores_tmp = np.float32(scores_tmp)
 
         if sidx == 0:
             scores = scores_tmp

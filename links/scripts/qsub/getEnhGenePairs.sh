@@ -17,22 +17,27 @@ The CLUSTPAIRS file should be like the output of clusterCorr.py.
 OPTIONS:
    -h     Show this message and exit
    -w NUM Distance cutoff (in bp) to match enhancers and genes.
+   -s NUM Small distance cutoff in case you want to use CTCF sites.
    -p FILE Promoter file.
    -e FILE Enhancer file.   
 EOF
 }
 
+CTCFFILE=${LABHOME}/roadmap/links/CTCF_intersect.bed.gz
 PROMFILE=${LABHOME}/roadmap/segmentations/Oct13/core_15_mergedPromAndFlnk_500bpFromTss_uniq_withDNase_genes.bed
 ENHFILE=${LABHOME}/roadmap/segmentations/Oct13/core_15_mergedEnh_notOnProm_withDNase_names.bed
 WIN=1000000
+SMALLWIN=
 
-while getopts "hw:p:e:" opt
+while getopts "hw:s:p:e:" opt
 do
     case $opt in
 	h)
 	    usage; exit;;
 	w)
 	    WIN=$OPTARG;;
+	s)
+	    SMALLWIN=$OPTARG;;
 	p)
 	    PROMFILE=$OPTARG;;
 	e) 
@@ -82,10 +87,16 @@ while read -r cluster1 cluster2; do
     # the enhancers overlapping the enhancer cluster (within WIN bp).
     echo "intersectBed -a $PROMFILE -b $promclust -u -wa > $tmpprom" >> $script
     echo "intersectBed -a $ENHFILE -b $enhclust -u -wa > $tmpenh" >> $script
-    echo "windowBed -a $tmpenh -b $tmpprom -w $WIN | awk 'BEGIN{OFS=\"\t\"}{print \$4,\$9}' | sort -u >> $TMPPAIR" >> $script
+    if [ -z $SMALLWIN ]; then
+	echo "windowBed -a $tmpenh -b $tmpprom -w $WIN | awk 'BEGIN{OFS=\"\t\"}{print \$4,\$9}' | sort -u >> $TMPPAIR" >> $script
+    else
+	echo "windowBed -a $tmpenh -b $tmpprom -w $SMALLWIN | awk 'BEGIN{OFS=\"\t\"}{print \$4,\$9}' | sort -u >> $TMPPAIR" >> $script
+	echo "windowBed -a $tmpenh -b $tmpprom -w $WIN | awk 'BEGIN{OFS=\"\t\"}{if(\$2 < \$6){s=\$2}else{s=\$6}; if(\$3 < \$7){e=\$7}else{e=\$3}; print \$1,s,e,\$4,\$9}' | intersectBed -a stdin -b $CTCFFILE -v | awk 'BEGIN{OFS=\"\t\"}{print \$4,\$5}' >> $TMPPAIR" >> $script 
+    fi
 done < $CLUSTPAIRS
 
 echo "sort -u $TMPPAIR > $OUTFILE" >> $script
 echo "rm $tmpprom $tmpenh $TMPPAIR" >> $script
 
 qsub -N getEnhGenePairs -l h_vmem=4G -l h_rt=6:00:00 -e $errfile -o /dev/null $script
+

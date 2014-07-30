@@ -22,8 +22,8 @@ for the same regions, so they will be concatenated.'''
     parser = argparse.ArgumentParser(description = desc,
                                      formatter_class = argparse.RawTextHelpFormatter)
     parser.add_argument('infiles')
-    parser.add_argument('bgfiles')
     parser.add_argument('outfile')
+    parser.add_argument('--bgfile', default = None)
     parser.add_argument('--depths', default = '2,3,4',
                         help = 'Comma separated list of tree depths to cross validate')
     parser.add_argument('--njobs', type = int, default = 1, 
@@ -37,6 +37,10 @@ for the same regions, so they will be concatenated.'''
                         'If < 1, then it will be considered as a fraction of examples.')    
     parser.add_argument('--noneg', action = 'store_true', default = False,
                         help = 'Set negative scores to 0 before traiing.')
+    parser.add_argument('--permbg', action = 'store_true', default = False,
+                        help = 'Create random background by shuffling the columns of the feature matrix')
+    parser.add_argument('--balanced', action = 'store_true', default = False,
+                        help = 'Make sure the background set has the same size as the input')
     args = parser.parse_args()
     outfile = args.outfile
     depths = [int(s) for s in args.depths.split(',')]
@@ -49,17 +53,36 @@ for the same regions, so they will be concatenated.'''
     
     for filename in args.infiles.split(','):
         files.append(filename.strip())
-
-    for filename in args.bgfiles.split(','):
-        bg_files.append(filename.strip())
-    
-    assert(len(files) == len(bg_files))
-        
     (scores, motif_names) = merge_scores(files)
-    (scores_bg, motif_names_bg) = merge_scores(bg_files)
-    assert(scores.shape[1] == scores_bg.shape[1])
-    assert(list(motif_names) == list(motif_names_bg))
+
+    if args.permbg:
+        numpy.random.seed(1)
+        perm_scores_bg = np.array(scores)
+        for i in range(scores.shape[1]):
+            perm = numpy.random.permutation(scores.shape[0])
+            perm_scores_bg[:, i] = scores[perm, i]
+    else:
+        assert(not args.bgfile is None)
+
+    if args.bgfile is None:
+        scores_bg = perm_scores_bg
+    else:
+        for filename in args.bgfile.split(','):
+            bg_files.append(filename.strip())
+        assert(len(files) == len(bg_files))
+
+        (scores_bg, motif_names_bg) = merge_scores(bg_files)
+        assert(list(motif_names) == list(motif_names_bg))
+        if args.permbg:
+            scores_bg = np.concatenate((scores_bg, perm_scores_bg), axis = 0)
     
+    if args.balanced:
+        numpy.random.seed(1)
+        ex_idx = sample_example_idx(scores_bg.shape[0], scores.shape[0])
+        scores_bg = scores_bg[ex_idx, :]
+
+    assert(scores.shape[1] == scores_bg.shape[1])
+
     y = np.concatenate((np.ones((scores.shape[0],)), np.zeros((scores_bg.shape[0],))))
     if min_leaf < 1:
         min_leaf = int(ceil(min_leaf * float(y.size)))

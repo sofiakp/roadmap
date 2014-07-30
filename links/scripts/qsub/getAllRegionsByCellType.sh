@@ -34,17 +34,25 @@ if [ ! -f ${OUTDIR}/tmp ]; then
 fi
 
 HBDIR=/srv/gsfs0/projects/kundaje/commonRepository/epigenomeRoadmap/integrative/regulatoryRegions/ENCODERoadmap/reg2map/HoneyBadger2_release/DNase/p2/
+IDFILE=$LABHOME/roadmap/expr_cell_line_ids.txt
 
 for filename in `ls ${HBDIR}/enh/BED_files_per_sample/`; do
     celltype=$(basename $filename)
     celltype=${celltype/regions_enh_/}
     celltype=${celltype/.bed.gz/}
 
+    match=`egrep $celltype $IDFILE | wc -l`
+    if [[ $match -eq 0 ]]; then
+	continue
+    fi
     f1=${HBDIR}/enh/BED_files_per_sample/$filename
     f2=${HBDIR}/prom/BED_files_per_sample/regions_prom_${celltype}.bed.gz
     f3=${HBDIR}/dyadic/BED_files_per_sample/regions_dyadic_${celltype}.bed.gz
     
     outfile=${OUTDIR}/regions_all_${celltype}.bed.gz
+    if [[ -f $outfile ]]; then
+	continue
+    fi
     errfile=${OUTDIR}/tmp/regions_all_${celltype}.err
     script=${OUTDIR}/tmp/regions_all_${celltype}.sh
 

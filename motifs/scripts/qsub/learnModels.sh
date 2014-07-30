@@ -5,9 +5,14 @@ usage()
 cat <<EOF
 usage: `basename $0` options SCANDIR
 Runs crossValidateCluster.py for a list of clusters read from STDIN.
+
 For each file <pref>.bed.gz it will look for feature matrices 
 starting with <pref>_vs_ in SCANDIR. The corresponding random backgrounds
 should be in SCANDIR/random_bg and have the same prefix.
+However, if you provide the -b option, it will use this file as background.
+If you provide the -r option, it will use a shuffled version of the input 
+feature matrix as background. If you give both -r and -b it will mix the 
+two backgrounds.
 
 By default, output will be written in SCANDIR/cv[_noNeg][/depth$d].
 
@@ -21,6 +26,8 @@ OPTIONS:
    -l NUM Minimum number (or fraction) of examples in leaves [Default: 10].
    -e     Set negative scores to 0 before learning.
    -o PATH Change the default output directory.
+   -r     Use shuffled input as background.    
+   -b PATH Use this file as background instead of the default one.
 EOF
 }
 
@@ -32,7 +39,9 @@ MEM=8
 MINLEAF=0.1
 NONEG=""
 OUTDIR=
-while getopts "hnd:t:l:p:m:eo:" opt
+PERMBG=""
+BG=
+while getopts "hnd:t:l:p:m:eo:rb:" opt
 do
     case $opt in
 	h)
@@ -53,6 +62,10 @@ do
 	    NONEG="--noneg";;
 	o) 
 	    OUTDIR=$OPTARG;;
+	b)
+	    BG=$OPTARG;;
+	r)
+	    PERMBG="--permbg";;
 	?)
 	    usage
             exit 1;;
@@ -70,6 +83,12 @@ if [ -z $OUTDIR ]; then
     if [[ $NONEG == "--noneg" ]]; then
 	OUTDIR=${OUTDIR}_noNeg
     fi
+    if [[ $PERMBG == "--permbg" ]]; then
+	OUTDIR=${OUTDIR}/permbg
+	if [ ! -z $BG ]; then
+	    OUTDIR=${OUTDIR}_plus_random
+	fi
+    fi
     if [[ $CV == "--nocv" ]]; then
 	OUTDIR=${OUTDIR}/depth${DEPTHS}
     fi
@@ -80,6 +99,7 @@ if [ ! -d ${OUTDIR}/tmp ]; then
 fi
 
 SRCDIR="${LABHOME}/roadmap/src/motifs/"
+
 
 while read -r bedfile; do
     pref=$(basename $bedfile)
@@ -103,7 +123,7 @@ while read -r bedfile; do
 
     echo "#!/bin/bash" > $script
     echo "module add python/2.7" >> $script 
-    params="--njobs $NJOBS --depths $DEPTHS --ntrees $NTREES --minleaf $MINLEAF $CV $NONEG"
+    params="--njobs $NJOBS --depths $DEPTHS --ntrees $NTREES --minleaf $MINLEAF --balanced $CV $NONEG $PERMBG"
     count=`ls $SCANDIR | egrep ${pref}_vs_.*_scores.npz | wc -l`
     if [ $count -ne 1 ]; then
 	echo "Ambiguous or missing file for prefix $pref. Skipping." 1>&2
@@ -115,7 +135,16 @@ while read -r bedfile; do
 	continue
     fi
     infile=`ls $SCANDIR/${pref}_vs_*_scores.npz`
-    bgfile=`ls ${SCANDIR}/random_bg/${pref}_vs_*scores_bg.npz`
-    echo "python ${SRCDIR}/python/crossValidateCluster.py $infile $bgfile $outfile $params" >> $script
+    if [[ $PERMBG == "" ]]; then
+	bgfile=`ls ${SCANDIR}/random_bg/${pref}_vs_*scores_bg.npz`
+	bgfile="--bgfile $bgfile"
+    else
+	if [ -z $BG ]; then
+	    bgfile=""
+	else
+	    bgfile="--bgfile $BG"
+	fi
+    fi
+    echo "python ${SRCDIR}/python/crossValidateCluster.py $infile $outfile $bgfile $params" >> $script
     qsub -N ${pref}_${suf} -l h_vmem=${MEM}G -l h_rt=6:00:00 -e $errfile -pe shm $NJOBS -o /dev/null $script
 done
