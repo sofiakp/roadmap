@@ -11,26 +11,24 @@ from motifCvUtils import *
 import numpy.random as rd
 from interutils import *
 
-
-def plot_thresh_distr(motif_names, thresh, out_dir): 
+def plot_thresh_distr(motif_names, thresh, out_dir, width = 350):
     """Creates boxplots of the thresholds used with each feature."""
-    
+
     df = pd.DataFrame({'motif':motif_names, 'thresh':thresh})
     df = df[df['thresh'] > 1]
-    
+
     df.to_csv(os.path.join(out_dir, 'count_thresh.txt'), sep = '\t', index = False)
     fsize = 10
     r_df = com.convert_to_r_dataframe(df)
     gp = ggplot2.ggplot(r_df) + ggplot2.aes_string(x = 'factor(motif)', y = 'thresh') + \
             ggplot2.geom_boxplot() + ggplot2.scale_y_continuous('Threshold counts', limits = ro.IntVector([0, 70])) + \
-            ggplot2.scale_x_discrete('') + ggplot2.theme_bw() + \
-            ggplot2.theme(**{'axis.text.x':ggplot2.element_text(size = fsize, angle = 65, hjust = 1, vjust = 1),
-                             'axis.text.y':ggplot2.element_text(size = fsize),
+            ggplot2.scale_x_discrete('') + ggplot2.theme_bw() + ggplot2.coord_flip() + \
+            ggplot2.theme(**{'axis.text.x':ggplot2.element_text(size = fsize),
+                             'axis.text.y':ggplot2.element_text(size = fsize, hjust = 1),
                              'strip.text.x':ggplot2.element_text(size = fsize + 1)})
     for ext in ['.pdf', '.png']:
-        ro.r.ggsave(filename = os.path.join(out_dir, 'count_thresh_bar' + ext), 
-                    plot = gp, width = 350, height = 150, unit = 'mm')
-
+        ro.r.ggsave(filename = os.path.join(out_dir, 'count_thresh_bar' + ext),
+                    plot = gp, width = width, height = 300, unit = 'mm')
 
 def get_rule_inter_enrich(rules, tf_names, inter):
     """Gets the enrichment of pairwise rules in known interactions.
