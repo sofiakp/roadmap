@@ -1,3 +1,5 @@
+#!/usr/bin/python 
+
 f=open("core_15_enh_gene_c0.8_noCTCF_links.bed","r")
 file=open("enh_name.txt","a")
 
@@ -16,7 +18,7 @@ for line in lines_set:
 f1=open("enh_list.txt", "r")
 f2=open("core_15_enh_gene_c0.8_noCTCF_links.txt","r").readlines()
 out= open('enh_gene_map.txt', 'w')
-c=0
+
 for line1 in f1:
     string=""
     word1=line1.split('\t')[0]
