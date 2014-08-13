@@ -19,7 +19,7 @@ with open("core_15_mergedEnh_notOnProm_withDNase_names.bed") as f:
          enh_name=line.split('\t')[3].strip()
          if enh_name in data_dict:
             for value in data_dict[enh_name]:
-                out.write('{0}	{1}	{2}	{3}\n'.format(line.split('\t')[0].strip(),line.split('\t')[1].strip(),line.split('\t')[2].strip(),value))
+                out.write('{0}\t{1}\t{2}\t{3}\n'.format(line.split('\t')[0].strip(),line.split('\t')[1].strip(),line.split('\t')[2].strip(),value))
 
 
 
@@ -42,5 +42,5 @@ for worksheet_name in worksheets:
         	end=worksheet.cell_value(curr_row,4)
         	info=worksheet.cell_value(curr_row,12)
         	gene_name= info.split(';',2)[1]
-		out.write('{0}	{1}	{2}	{3}\n'.format(chr_name,start,end,gene_name))
+		out.write('{0}\t{1}\t{2}\t{3}\n'.format(chr_name,start,end,gene_name))
 
