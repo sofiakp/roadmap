@@ -6,3 +6,11 @@ To Compute P-Values:
 4) Compute permutations for each pair of signals: Null_Hypothesis.R
 5) Aggregate permutated correlations: Aggregate_Correlation.R
 6) Compute P-Values: P_Value.R
+
+
+To Compute overlaps between experimental data and computational data:
+
+1) Build computational data file and experimental data file based on the correlated pairs of genes and enhancers: Enh_Gene_bedFile.py
+2) Permute computational data file in terms of gene name column:  BedFile_Permutation.py
+3) Intersect all the permutation files with experimental data file to find region overlaps: Intersect_BedFiles.sh
+4) Count the number of overlaps based on gene names: Overlaps_Counts.py
