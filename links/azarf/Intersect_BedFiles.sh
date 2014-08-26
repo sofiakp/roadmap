@@ -13,5 +13,5 @@ do
   temp="_overlap.bed"
   name=$filename$temp
   echo $name
-  intersectBed -a $EXPData -b $f > $name
+  intersectBed -a $EXPData -b $f -wa -wb > $name
 done
